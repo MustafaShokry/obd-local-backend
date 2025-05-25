@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { configValidationSchema } from './config.schema';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ObdModule } from './obd/obd.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
+    ObdModule,
   ],
   controllers: [AppController],
   providers: [AppService],

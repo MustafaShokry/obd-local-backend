@@ -9,6 +9,9 @@ async function bootstrap() {
   if (process.env.STAGE === 'dev') {
     app.enableCors();
   }
+  app.setGlobalPrefix('api', {
+    exclude: ['/'],
+  });
   await app.listen(port);
   logger.log(`Application listening on port ${port}`);
   logger.log(`Environment: ${process.env.STAGE}`);
