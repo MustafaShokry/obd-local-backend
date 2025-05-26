@@ -5,6 +5,9 @@ import { ConfigModule } from '@nestjs/config';
 import { configValidationSchema } from './config.schema';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ObdModule } from './obd/obd.module';
+import { LogModule } from './log/log.module';
+import { SyncModule } from './sync/sync.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -18,7 +21,10 @@ import { ObdModule } from './obd/obd.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
+    ScheduleModule.forRoot(),
     ObdModule,
+    LogModule,
+    SyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],

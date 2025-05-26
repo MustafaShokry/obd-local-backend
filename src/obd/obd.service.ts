@@ -51,6 +51,11 @@ export class ObdService implements OnModuleInit {
     );
     return mappedCurrentData;
   }
+  getCurrentDataRaw(): ObdCurrentData {
+    const supportedPIDs = this.vehicleProfile.supported_PIDs;
+    const currentData = this.obdReaderService.getCurrentData(supportedPIDs);
+    return currentData;
+  }
 
   mapObdPidToName(pid: obdCurrentDataPid): string {
     return obdCurrentDataPid[pid];

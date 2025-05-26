@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { ObdService } from './obd.service';
 import { DTC } from './types/obd.types';
 
@@ -26,7 +26,7 @@ export class ObdController {
     return this.obdService.getPendingDTCs();
   }
 
-  @Get('clear-faults')
+  @Post('clear-faults')
   clearFaults(): { success: boolean } {
     return this.obdService.clearFaults();
   }
