@@ -8,6 +8,7 @@ import { ObdModule } from './obd/obd.module';
 import { LogModule } from './log/log.module';
 import { SyncModule } from './sync/sync.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ObdModule,
     LogModule,
     SyncModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { MarkSyncedDto } from './dto/mark-synced.dto';
+import { AccessTokenGuard } from 'src/auth/accessToken.guard';
 
 @Controller('sync')
+@UseGuards(AccessTokenGuard)
 export class SyncController {
   constructor(private readonly syncService: SyncService) {}
 

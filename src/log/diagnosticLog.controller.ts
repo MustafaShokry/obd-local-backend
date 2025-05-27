@@ -1,7 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import { DiagnosticLogService } from './diagnosticLog.service';
+import { AccessTokenGuard } from 'src/auth/accessToken.guard';
 
 @Controller('log/diagnostic')
+@UseGuards(AccessTokenGuard)
 export class DiagnosticLogController {
   constructor(private readonly diagnosticLogService: DiagnosticLogService) {}
 

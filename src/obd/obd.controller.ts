@@ -1,8 +1,10 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ObdService } from './obd.service';
 import { DTC } from './types/obd.types';
+import { AccessTokenGuard } from 'src/auth/accessToken.guard';
 
 @Controller('obd')
+@UseGuards(AccessTokenGuard)
 export class ObdController {
   constructor(private readonly obdService: ObdService) {}
 
