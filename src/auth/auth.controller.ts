@@ -10,6 +10,8 @@ import {
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
+import { RegisterUserDto } from './dto/register-user.dto';
+import { User } from './entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -19,8 +21,25 @@ export class AuthController {
   ) {}
 
   @Get('pairing-token')
-  async getPairingToken(): Promise<{ token: string; qrCode: string }> {
+  async getPairingToken(): Promise<{ token: string }> {
     return this.authService.generatePairingToken();
+  }
+
+  @Get('qr-code')
+  async getQrCode(): Promise<{ qrCode: string }> {
+    return this.authService.createQrCode();
+  }
+
+  @Post('register-user')
+  async registerUser(
+    @Body() userData: RegisterUserDto,
+  ): Promise<{ message: string }> {
+    return this.authService.registerUser(userData);
+  }
+
+  @Get('me')
+  async getUserProfile(): Promise<User> {
+    return this.authService.getUserProfile();
   }
 
   @Post('refresh')
@@ -54,6 +73,11 @@ export class AuthController {
 
     if (!isValid) {
       throw new UnauthorizedException('Invalid signature');
+    }
+
+    const isUserLoggedIn = await this.authService.isUserLoggedIn();
+    if (!isUserLoggedIn) {
+      throw new UnauthorizedException('User not logged in');
     }
 
     const accessToken = await this.authService.issueAccessToken({
