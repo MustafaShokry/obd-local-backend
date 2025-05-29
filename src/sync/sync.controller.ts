@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { SyncService } from './sync.service';
 import { MarkSyncedDto } from './dto/mark-synced.dto';
 import { AccessTokenGuard } from 'src/auth/accessToken.guard';
@@ -13,8 +13,8 @@ export class SyncController {
     return this.syncService.getSyncPayload();
   }
 
-  @Post('mark-synced')
-  markAsSynced(@Body() body: MarkSyncedDto) {
+  @Patch('mark-synced')
+  markAsSynced(@Body() body: MarkSyncedDto): Promise<{ success: boolean }> {
     return this.syncService.markAllAsSynced(body);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { DiagnosticLogService } from 'src/log/diagnosticLog.service';
 import { DiagnosticLog } from 'src/log/entities/diagnosticLog.entity';
 import { EventLog } from 'src/log/entities/eventLog.entity';
@@ -33,11 +33,20 @@ export class SyncService {
     };
   }
 
-  async markAllAsSynced(data: MarkSyncedDto): Promise<void> {
+  async markAllAsSynced(data: MarkSyncedDto): Promise<{ success: boolean }> {
+    if (!data) {
+      throw new BadRequestException('No data provided');
+    }
     await Promise.all([
-      this.readingLogService.markAsSynced(data.readingIds),
-      this.diagnosticLogService.markAsSynced(data.diagnosticIds),
-      this.eventLogService.markAsSynced(data.eventIds),
+      'readingIds' in data &&
+        (await this.readingLogService.markAsSynced(data.readingIds)),
+      'diagnosticIds' in data &&
+        (await this.diagnosticLogService.markAsSynced(data.diagnosticIds)),
+      'eventIds' in data &&
+        (await this.eventLogService.markAsSynced(data.eventIds)),
     ]);
+    return {
+      success: true,
+    };
   }
 }
