@@ -24,6 +24,7 @@ export class DiagnosticLogService {
 
   async getLatest(): Promise<DiagnosticLog | null> {
     return this.diagnosticLogRepository.findOne({
+      where: {},
       order: { timestamp: 'DESC' },
     });
   }
