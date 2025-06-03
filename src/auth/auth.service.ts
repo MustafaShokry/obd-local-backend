@@ -52,21 +52,21 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async createQrCode(): Promise<{ qrCode: string }> {
-    const generateQR = async (text: string) => {
-      try {
-        const qrCode = (await QRCode.toDataURL(text)) as string;
-        return qrCode;
-      } catch (err) {
-        console.error(err);
-        throw new Error('QR code generation failed');
-      }
-    };
+  createQrCode(): { qrCode: string } {
+    // const generateQR = async (text: string) => {
+    //   try {
+    //     const qrCode = (await QRCode.toDataURL(text)) as string;
+    //     return qrCode;
+    //   } catch (err) {
+    //     console.error(err);
+    //     throw new Error('QR code generation failed');
+    //   }
+    // };
 
     const ip = this.configService.get('HOST') as string;
     const port = this.configService.get('PORT') as string;
-    const qrCodeData = `http://${ip}:${port}/api/auth/pairing-token`;
-    const qrCode = await generateQR(qrCodeData);
+    const qrCode = `http://${ip}:${port}/api/auth/pairing-token`;
+    // const qrCode = await generateQR(qrCodeData);
 
     return { qrCode };
   }

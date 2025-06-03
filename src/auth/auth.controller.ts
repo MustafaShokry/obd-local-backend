@@ -26,7 +26,7 @@ export class AuthController {
   }
 
   @Get('qr-code')
-  async getQrCode(): Promise<{ qrCode: string }> {
+  getQrCode(): { qrCode: string } {
     return this.authService.createQrCode();
   }
 
