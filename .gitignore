@@ -62,3 +62,8 @@ database.sqlite
 
 # Keys
 keys/
+
+# Uploads
+uploads/
+
+scripts/piper

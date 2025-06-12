@@ -18,7 +18,11 @@ async function bootstrap() {
     exclude: ['/'],
   });
   app.use(cookieParser());
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+    }),
+  );
   await app.listen(port);
   logger.log(`Application listening on port ${port}`);
   logger.log(`Environment: ${process.env.STAGE}`);

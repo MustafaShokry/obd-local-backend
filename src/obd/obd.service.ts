@@ -6,6 +6,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ObdCurrentData } from './types/obd.types';
 import { obdCurrentDataPid } from './entities/enums/obdCurrentDataPid.enum';
 import { DTC } from './types/obd.types';
+import {
+  sensorConfig,
+  categoryConfig,
+  SensorConfig,
+  CategoryConfig,
+  SensorConfigWithUnit,
+} from './config/sensors.config';
 
 @Injectable()
 export class ObdService implements OnModuleInit {
@@ -55,6 +62,43 @@ export class ObdService implements OnModuleInit {
     const supportedPIDs = this.vehicleProfile.supported_PIDs;
     const currentData = this.obdReaderService.getCurrentData(supportedPIDs);
     return currentData;
+  }
+
+  getConfig(useImperial = false): {
+    sensorConfigs: SensorConfigWithUnit[];
+    categoryConfigs: CategoryConfig[];
+  } {
+    const sensorConfigs = Object.entries(sensorConfig).map(
+      ([key, sensor]: [string, SensorConfig]) => {
+        return {
+          key,
+          ...sensor,
+          unit: useImperial ? sensor.unit.imperial : sensor.unit.metric,
+          max: useImperial ? sensor.max.imperial : sensor.max.metric,
+          min: useImperial ? sensor.min.imperial : sensor.min.metric,
+          warning: useImperial
+            ? sensor?.warning?.imperial
+            : sensor?.warning?.metric,
+          optimal: useImperial
+            ? sensor?.optimal?.imperial
+            : sensor?.optimal?.metric,
+          criticalRange: useImperial
+            ? sensor.criticalRange.imperial
+            : sensor.criticalRange.metric,
+        };
+      },
+    );
+
+    const categoryConfigs = Object.entries(categoryConfig).map(
+      ([key, category]: [string, CategoryConfig]) => ({
+        key,
+        ...category,
+      }),
+    );
+    return {
+      sensorConfigs,
+      categoryConfigs,
+    };
   }
 
   mapObdPidToName(pid: obdCurrentDataPid): string {

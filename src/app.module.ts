@@ -9,6 +9,9 @@ import { LogModule } from './log/log.module';
 import { SyncModule } from './sync/sync.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
+import { LlmModule } from './llm/llm.module';
+import { SpeechModule } from './speech/speech.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -27,6 +30,9 @@ import { AuthModule } from './auth/auth.module';
     LogModule,
     SyncModule,
     AuthModule,
+    LlmModule,
+    SpeechModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,4 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { LogSeverity } from '../types/logs.types';
+import { SensorType } from 'src/obd/types/obd.types';
 
 @Entity()
 export class ReadingLog {
@@ -8,26 +10,13 @@ export class ReadingLog {
   @Column()
   timestamp: Date;
 
-  @Column({ type: 'float', nullable: true })
-  engineRpm: number;
-
-  @Column({ type: 'float', nullable: true })
-  vehicleSpeed: number;
-
-  @Column({ type: 'float', nullable: true })
-  coolantTemp: number;
-
-  @Column({ type: 'float', nullable: true })
-  fuelLevel: number;
-
-  // @Column({ type: 'float', nullable: true })
-  // batteryVoltage: number;
-
-  @Column({ type: 'float', nullable: true })
-  intakeAirTemp: number;
-
-  @Column({ type: 'float', nullable: true })
-  throttlePosition: number;
+  @Column({ type: 'json' })
+  readings: {
+    [key in SensorType]: {
+      reading: number;
+      severity: LogSeverity;
+    } | null;
+  };
 
   @Column({ default: false })
   synced: boolean;

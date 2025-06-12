@@ -12,11 +12,13 @@ import { EventLogService } from './eventLog.service';
 import { EventLogController } from './eventLog.controller';
 import { ObdSchedulerService } from './logScheduler.service';
 import { AuthModule } from 'src/auth/auth.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([ReadingLog, DiagnosticLog, EventLog]),
     ObdModule,
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [
     ReadingLogController,

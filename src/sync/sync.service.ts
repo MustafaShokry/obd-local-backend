@@ -6,6 +6,8 @@ import { ReadingLog } from 'src/log/entities/readingLog.entity';
 import { EventLogService } from 'src/log/eventLog.service';
 import { ReadingLogService } from 'src/log/readingLog.service';
 import { MarkSyncedDto } from './dto/mark-synced.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
+import { Notification } from 'src/notifications/entities/notification.entity';
 
 @Injectable()
 export class SyncService {
@@ -13,6 +15,7 @@ export class SyncService {
     private readonly readingLogService: ReadingLogService,
     private readonly diagnosticLogService: DiagnosticLogService,
     private readonly eventLogService: EventLogService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getSyncPayload(): Promise<{
@@ -26,6 +29,11 @@ export class SyncService {
       this.eventLogService.getUnsynced(),
     ]);
 
+    const notification = new Notification();
+    notification.type = 'info';
+    notification.title = 'Synced';
+    notification.message = `Synced ${readings.length} readings, ${diagnostics.length} diagnostics, and ${events.length} events to the mobile app, please connect the device to the internet to sync the data.`;
+    await this.notificationsService.createNotification(notification);
     return {
       readings,
       diagnostics,
@@ -45,6 +53,11 @@ export class SyncService {
       'eventIds' in data &&
         (await this.eventLogService.markAsSynced(data.eventIds)),
     ]);
+    const notification = new Notification();
+    notification.type = 'success';
+    notification.title = 'Synced to the cloud';
+    notification.message = 'Data synced successfully to the cloud';
+    await this.notificationsService.createNotification(notification);
     return {
       success: true,
     };

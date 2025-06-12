@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ObdService } from './obd.service';
 import { DTC } from './types/obd.types';
 import { AccessTokenGuard } from 'src/auth/accessToken.guard';
@@ -11,6 +11,11 @@ export class ObdController {
   @Get('live')
   getCurrentData() {
     return this.obdService.getCurrentData();
+  }
+
+  @Get('config')
+  getConfig(@Query('useImperial') useImperial: boolean) {
+    return this.obdService.getConfig(useImperial);
   }
 
   @Get('profile')

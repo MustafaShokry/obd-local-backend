@@ -1,4 +1,5 @@
 import { PrimaryGeneratedColumn, Column, Entity } from 'typeorm';
+import { DiagnosticStatus, LogSeverity } from '../types/logs.types';
 
 @Entity()
 export class DiagnosticLog {
@@ -8,11 +9,26 @@ export class DiagnosticLog {
   @Column()
   timestamp: Date;
 
-  @Column({ type: 'simple-array' })
-  activeDTCs: string[];
+  @Column()
+  code: string;
 
-  @Column({ type: 'simple-array', nullable: true })
-  pendingDTCs: string[];
+  @Column()
+  description: string;
+
+  @Column()
+  status: DiagnosticStatus;
+
+  @Column()
+  severity: LogSeverity;
+
+  @Column()
+  occurrenceCount: number;
+
+  @Column()
+  lastOccurrence: Date;
+
+  @Column({ nullable: true })
+  clearedAt: Date;
 
   @Column({ default: false })
   synced: boolean;

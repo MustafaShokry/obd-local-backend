@@ -15,6 +15,7 @@ import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -97,8 +98,42 @@ export class AuthService implements OnModuleInit {
     if (user) {
       throw new BadRequestException('User already exists');
     }
+    const settings = {
+      units: 'imperial',
+      language: 'en',
+      aiChat: {
+        language: 'en',
+        voice: 'en-US-Standard-A',
+        autoPlay: 'never',
+      },
+      theme: 'dark',
+      dashboard: {
+        selectedSensors: ['INTAKE_AIR_TEMPERATURE'],
+        refreshRate: 500,
+        showWarnings: true,
+        autoScale: true,
+        gaugeSize: 180,
+      },
+      notifications: {
+        enabled: true,
+        sound: false,
+        vibration: true,
+        criticalOnly: false,
+      },
+      dataLogging: {
+        enabled: false,
+        interval: 1000,
+        maxFileSize: 100,
+      },
+      display: {
+        keepScreenOn: false,
+        brightness: 80,
+        orientation: 'auto',
+      },
+    };
     const newUser = this.userRepository.create({
       ...userData,
+      settings,
       created_at: new Date(),
       updated_at: new Date(),
     });
@@ -134,7 +169,7 @@ export class AuthService implements OnModuleInit {
     })
       .setProtectedHeader({ alg: 'RS256' })
       .setIssuedAt()
-      .setExpirationTime(payload.client === 'front' ? '30d' : '5m')
+      .setExpirationTime(payload.client === 'front' ? '30d' : '7h')
       .sign(this.keyService.getLocalSigningPrivateKey());
   }
 
@@ -154,5 +189,18 @@ export class AuthService implements OnModuleInit {
       Buffer.from(expectedSignature),
       Buffer.from(receivedSignature),
     );
+  }
+
+  async updateSettings(settings: UpdateSettingsDto): Promise<User['settings']> {
+    const user = await this.userRepository.findOne({
+      where: { userId: settings.userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.userRepository.update(user.id, {
+      settings: settings.settings,
+    });
+    return settings.settings;
   }
 }

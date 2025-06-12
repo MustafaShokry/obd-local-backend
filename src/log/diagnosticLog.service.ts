@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DiagnosticLog } from './entities/diagnosticLog.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DiagnosticStatus } from './types/logs.types';
 
 @Injectable()
 export class DiagnosticLogService {
@@ -31,6 +32,24 @@ export class DiagnosticLogService {
 
   async getUnsynced(): Promise<DiagnosticLog[]> {
     return this.diagnosticLogRepository.find({ where: { synced: false } });
+  }
+
+  async findByCodeAndStatus(
+    code: string,
+    status: DiagnosticStatus,
+  ): Promise<DiagnosticLog | null> {
+    return this.diagnosticLogRepository.findOne({
+      where: { code, status },
+      order: { lastOccurrence: 'DESC' },
+    });
+  }
+
+  async update(
+    id: string,
+    log: Partial<DiagnosticLog>,
+  ): Promise<DiagnosticLog | null> {
+    await this.diagnosticLogRepository.update(id, log);
+    return this.diagnosticLogRepository.findOne({ where: { id } });
   }
 
   async markAsSynced(ids: string[]): Promise<void> {

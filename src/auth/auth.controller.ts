@@ -6,12 +6,14 @@ import {
   UnauthorizedException,
   Res,
   Headers,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { RegisterUserDto } from './dto/register-user.dto';
 import { User } from './entities/user.entity';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -40,6 +42,13 @@ export class AuthController {
   @Get('me')
   async getUserProfile(): Promise<User> {
     return this.authService.getUserProfile();
+  }
+
+  @Patch('me/settings')
+  async updateSettings(
+    @Body() settings: UpdateSettingsDto,
+  ): Promise<User['settings']> {
+    return this.authService.updateSettings(settings);
   }
 
   @Post('refresh')

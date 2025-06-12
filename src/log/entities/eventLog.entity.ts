@@ -1,5 +1,6 @@
 import { PrimaryGeneratedColumn, Column, Entity } from 'typeorm';
 import { Event } from '../../obd/entities/enums/event.enum';
+import { LogSeverity } from '../types/logs.types';
 
 @Entity()
 export class EventLog {
@@ -8,6 +9,9 @@ export class EventLog {
 
   @Column()
   type: Event;
+
+  @Column()
+  severity: LogSeverity;
 
   @Column()
   timestamp: Date;
