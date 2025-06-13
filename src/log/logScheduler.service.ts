@@ -47,22 +47,10 @@ export class ObdSchedulerService {
         reading &&
         sensorConfig &&
         typeof reading === 'number' &&
-        reading >= sensorConfig.min &&
-        reading <= sensorConfig.max
-      ) {
-        readingLog.readings[sensor] = {
-          sensor: sensor,
-          reading: reading,
-          severity: LogSeverity.INFO,
-        };
-      } else if (
-        reading &&
-        sensorConfig &&
-        typeof reading === 'number' &&
         sensorConfig.warning?.min &&
         sensorConfig.warning?.max &&
-        (reading > sensorConfig.warning.min ||
-          reading < sensorConfig.warning.max)
+        reading > sensorConfig.warning.min &&
+        reading < sensorConfig.warning.max
       ) {
         readingLog.readings[sensor] = {
           sensor: sensor,
@@ -80,8 +68,8 @@ export class ObdSchedulerService {
         typeof reading === 'number' &&
         sensorConfig.criticalRange?.min &&
         sensorConfig.criticalRange?.max &&
-        (reading > sensorConfig.criticalRange.min ||
-          reading < sensorConfig.criticalRange.max)
+        reading > sensorConfig.criticalRange.min &&
+        reading < sensorConfig.criticalRange.max
       ) {
         readingLog.readings[sensor] = {
           sensor: sensor,
@@ -93,6 +81,12 @@ export class ObdSchedulerService {
         notification.title = 'Sensor reading in the critical range';
         notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.criticalRange.min} ${sensorConfig.unit} - ${sensorConfig.criticalRange.max} ${sensorConfig.unit})`;
         await this.notificationsService.createNotification(notification);
+      } else {
+        readingLog.readings[sensor] = {
+          sensor: sensor,
+          reading: reading,
+          severity: LogSeverity.INFO,
+        };
       }
     }
 
