@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { obdCurrentDataPid } from './enums/obdCurrentDataPid.enum';
 import { ObdProtocol } from './enums/obdProtocol.enum';
 
 @Entity()
@@ -28,11 +27,32 @@ export class VehicleProfile {
   @Column({ type: 'int', nullable: true })
   year?: number;
 
+  @Column({ nullable: true })
+  trim?: string;
+
+  @Column({ nullable: true })
+  color?: string;
+
+  @Column({ nullable: true })
+  engineSize?: string;
+
+  @Column({ nullable: true })
+  transmission?: string;
+
+  @Column({ nullable: true })
+  fuelType?: string;
+
+  @Column({ nullable: true })
+  lastService?: Date;
+
+  @Column({ nullable: true })
+  nextService?: Date;
+
   @Column({ type: 'blob', nullable: true })
   carImage?: Buffer;
 
   @Column('simple-json')
-  supported_PIDs: obdCurrentDataPid[];
+  supportedSensors: string[];
 
   @CreateDateColumn()
   created_at: Date;

@@ -6,8 +6,27 @@ import { DTC, ObdCurrentData } from './types/obd.types';
 @Injectable()
 export class ObdReaderService {
   getSupportedPIDs(): obdCurrentDataPid[] {
-    // TODO: get supported PIDs from the C program
-    return [obdCurrentDataPid.ENGINE_RPM, obdCurrentDataPid.VEHICLE_SPEED];
+    // TODO: get supported PIDs from the C program, don't forget to add the new PIDs
+    return [
+      obdCurrentDataPid.ENGINE_RPM,
+      obdCurrentDataPid.VEHICLE_SPEED,
+      obdCurrentDataPid.FUEL_TANK_LEVEL_INPUT,
+      obdCurrentDataPid.ENGINE_COOLANT_TEMPERATURE,
+      obdCurrentDataPid.INTAKE_AIR_TEMPERATURE,
+      obdCurrentDataPid.CALCULATED_ENGINE_LOAD,
+      obdCurrentDataPid.CONTROL_MODULE_VOLTAGE,
+      obdCurrentDataPid.FUEL_PRESSURE,
+
+      obdCurrentDataPid.INTAKE_MANIFOLD_PRESSURE,
+      obdCurrentDataPid.THROTTLE_POSITION,
+      obdCurrentDataPid.RUN_TIME_SINCE_ENGINE_START,
+      obdCurrentDataPid.ENGINE_OIL_TEMP,
+      obdCurrentDataPid.TIMING_ADVANCE,
+      obdCurrentDataPid.MAF_AIR_FLOW_RATE,
+      obdCurrentDataPid.AMBIENT_AIR_TEMPERATURE,
+      obdCurrentDataPid.BAROMETRIC_PRESSURE,
+      obdCurrentDataPid.DISTANCE_TRAVELED_SINCE_CODES_CLEARED,
+    ];
   }
 
   getSupportedProtocols(): ObdProtocol[] {
@@ -21,16 +40,35 @@ export class ObdReaderService {
     make?: string;
     model?: string;
     year?: number;
-    supported_PIDs: obdCurrentDataPid[];
+    trim?: string;
+    color?: string;
+    engineSize?: string;
+    fuelType?: string;
+    transmission?: string;
+    lastService?: Date;
+    nextService?: Date;
+    supportedSensors: string[];
   } {
     // TODO: get vehicle info from the C program
     return {
-      vin: '1234567890',
-      protocol: ObdProtocol.ISO9141_2,
-      make: 'Toyota',
-      model: 'Camry',
-      year: 2020,
-      supported_PIDs: this.getSupportedPIDs(),
+      vin: '1HGBH41JXMN109186',
+      make: 'Honda',
+      model: 'Accord',
+      year: 2021,
+      trim: 'EX-L',
+      color: 'Metallic Blue',
+      engineSize: '2.0L',
+      fuelType: 'Gasoline',
+      transmission: 'CVT',
+      lastService: new Date('2024-03-15'),
+      nextService: new Date('2024-09-15'),
+      protocol: ObdProtocol.ISO15765_4_CAN,
+      supportedSensors: this.getSupportedPIDs().map((pid) => {
+        const key = Object.keys(obdCurrentDataPid).find(
+          (key) => obdCurrentDataPid[key] === pid,
+        );
+        return key ? key : '';
+      }),
     };
   }
 

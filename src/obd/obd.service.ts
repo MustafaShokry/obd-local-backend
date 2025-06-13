@@ -48,7 +48,9 @@ export class ObdService implements OnModuleInit {
   }
 
   getCurrentData(): ObdCurrentData {
-    const supportedPIDs = this.vehicleProfile.supported_PIDs;
+    const supportedPIDs = this.vehicleProfile.supportedSensors.map(
+      (sensor) => obdCurrentDataPid[sensor as unknown as obdCurrentDataPid],
+    ) as unknown as obdCurrentDataPid[];
     const currentData = this.obdReaderService.getCurrentData(supportedPIDs);
     const mappedCurrentData = Object.fromEntries(
       Object.entries(currentData).map(([key, value]) => [
@@ -59,7 +61,9 @@ export class ObdService implements OnModuleInit {
     return mappedCurrentData;
   }
   getCurrentDataRaw(): ObdCurrentData {
-    const supportedPIDs = this.vehicleProfile.supported_PIDs;
+    const supportedPIDs = this.vehicleProfile.supportedSensors.map(
+      (sensor) => obdCurrentDataPid[sensor as unknown as obdCurrentDataPid],
+    ) as unknown as obdCurrentDataPid[];
     const currentData = this.obdReaderService.getCurrentData(supportedPIDs);
     return currentData;
   }

@@ -109,7 +109,7 @@ export class AuthService implements OnModuleInit {
       theme: 'dark',
       dashboard: {
         selectedSensors: ['INTAKE_AIR_TEMPERATURE'],
-        refreshRate: 500,
+        refreshRate: 0.5,
         showWarnings: true,
         autoScale: true,
         gaugeSize: 180,
