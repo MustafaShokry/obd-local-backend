@@ -15,7 +15,6 @@ import { llmQuery, llmResponse } from './llm.types';
 import { ObdService } from 'src/obd/obd.service';
 import { UpdateChatTitleDto } from './dto/update-chat-title.dto';
 import type { SupportedLanguage } from 'src/speech/speech.service';
-import { marked } from 'marked';
 
 @Injectable()
 export class LlmService {
@@ -175,7 +174,7 @@ export class LlmService {
 
     const userMessage = this.chatMessageRepository.create({
       session: { id: chatId },
-      content: content || llmQuery.voice_text,
+      content: `${content}, voice: ${llmQuery.voice_text}`,
       role: 'user',
     });
     await this.chatMessageRepository.save(userMessage);
@@ -198,7 +197,7 @@ export class LlmService {
       const ttsResult = await this.speechService.synthesizeSpeech(
         llmResponse.response,
         language as SupportedLanguage,
-        { playDirectly: true },
+        { playDirectly: true, voice },
       );
       console.log(ttsResult);
     }
@@ -221,13 +220,6 @@ export class LlmService {
       },
     });
     const data = (await response.json()) as llmResponse;
-    console.log('data', data);
-    // // process the response as it is a markdown file, and return what will be spoken
-    // const markdown = data.response;
-    // const html = await marked.parse(markdown);
-    // const text = html.replace(/<[^>]*>?/g, '').trim();
-    // console.log(text);
-    // data.response = text;
     return data;
   }
 }

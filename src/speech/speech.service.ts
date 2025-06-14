@@ -33,6 +33,7 @@ export interface TTSOptions {
   amplitude?: number; // 0-200 (default: 100)
   outputFile?: string;
   playDirectly?: boolean;
+  voice?: string;
 }
 
 export type SupportedLanguage = 'en' | 'ar' | 'es' | 'fr' | 'de';
@@ -205,93 +206,6 @@ export class SpeechService {
     }
   }
 
-  // private async executeTTSScript(
-  //   text: string,
-  //   language: SupportedLanguage = 'en',
-  //   options: TTSOptions,
-  // ): Promise<TTSResult> {
-  //   return new Promise((resolve, reject) => {
-  //     let processedText: string;
-  //     let useFileInput = false;
-  //     let tempFilePath: string | null = null;
-
-  //     if (language === 'ar' || this.containsArabicText(text)) {
-  //       useFileInput = true;
-  //       tempFilePath = this.createTempFile(text);
-  //       processedText = tempFilePath;
-  //     } else {
-  //       const textBuffer = Buffer.from(text, 'utf8');
-  //       processedText = textBuffer.toString('utf8');
-  //     }
-
-  //     const args = [this.ttsPythonScriptPath];
-
-  //     if (useFileInput) {
-  //       args.push('--file', processedText);
-  //     } else {
-  //       args.push(processedText);
-  //     }
-
-  //     args.push('--language', language, '--format', 'json');
-
-  //     if (options.speed) args.push('--speed', options.speed.toString());
-  //     if (options.pitch) args.push('--pitch', options.pitch.toString());
-  //     if (options.amplitude)
-  //       args.push('--amplitude', options.amplitude.toString());
-  //     if (options.outputFile) args.push('--output', options.outputFile);
-  //     if (options.playDirectly) args.push('--play');
-
-  //     const pythonProcess = spawn('python', args, {
-  //       stdio: ['pipe', 'pipe', 'pipe'],
-  //       env: {
-  //         ...process.env,
-  //         PYTHONIOENCODING: 'utf-8',
-  //         LC_ALL: 'en_US.UTF-8',
-  //       },
-  //     });
-
-  //     let stdout = '';
-  //     let stderr = '';
-
-  //     pythonProcess.stdout.on('data', (data: Buffer) => {
-  //       stdout += data.toString('utf8');
-  //     });
-
-  //     pythonProcess.stderr.on('data', (data: Buffer) => {
-  //       stderr += data.toString('utf8');
-  //     });
-
-  //     pythonProcess.on('close', (code: number) => {
-  //       if (tempFilePath) {
-  //         this.cleanupTempFile(tempFilePath);
-  //       }
-
-  //       if (code === 0) {
-  //         try {
-  //           const result = JSON.parse(stdout) as TTSResult;
-  //           resolve(result);
-  //         } catch (parseError: unknown) {
-  //           const errorMessage =
-  //             parseError instanceof Error
-  //               ? parseError.message
-  //               : 'Unknown parse error';
-  //           reject(
-  //             new Error(`Failed to parse TTS script output: ${errorMessage}`),
-  //           );
-  //         }
-  //       } else {
-  //         reject(new Error(`TTS script failed with code ${code}: ${stderr}`));
-  //       }
-  //     });
-
-  //     pythonProcess.on('error', (error: Error) => {
-  //       if (tempFilePath) {
-  //         this.cleanupTempFile(tempFilePath);
-  //       }
-  //       reject(new Error(`Failed to start TTS process: ${error.message}`));
-  //     });
-  //   });
-  // }
   private async executeTTSScript(
     text: string,
     language: SupportedLanguage = 'en',
