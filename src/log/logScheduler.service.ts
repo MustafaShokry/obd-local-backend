@@ -28,8 +28,14 @@ export class ObdSchedulerService {
     if (!(await this.authService.isUserLoggedIn())) {
       return;
     }
-    const readings = this.obdService.getCurrentData();
     const user = await this.authService.getUserProfile();
+    if (
+      !user.settings.dataLogging.enabled &&
+      !user.settings.notifications.enabled
+    ) {
+      return;
+    }
+    const readings = this.obdService.getCurrentData();
     const { sensorConfigs } = this.obdService.getConfig(
       user.settings.units === 'imperial',
     );
@@ -52,16 +58,23 @@ export class ObdSchedulerService {
         reading > sensorConfig.warning.min &&
         reading < sensorConfig.warning.max
       ) {
-        readingLog.readings[sensor] = {
-          sensor: sensor,
-          reading: reading,
-          severity: LogSeverity.WARNING,
-        };
-        const notification = new Notification();
-        notification.type = 'warning';
-        notification.title = 'Sensor reading in the warning range';
-        notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.warning.min} ${sensorConfig.unit} - ${sensorConfig.warning.max} ${sensorConfig.unit})`;
-        await this.notificationsService.createNotification(notification);
+        if (user.settings.dataLogging.enabled) {
+          readingLog.readings[sensor] = {
+            sensor: sensor,
+            reading: reading,
+            severity: LogSeverity.WARNING,
+          };
+        }
+        if (
+          user.settings.notifications.enabled &&
+          !user.settings.notifications.criticalOnly
+        ) {
+          const notification = new Notification();
+          notification.type = 'warning';
+          notification.title = 'Sensor reading in the warning range';
+          notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.warning.min} ${sensorConfig.unit} - ${sensorConfig.warning.max} ${sensorConfig.unit})`;
+          await this.notificationsService.createNotification(notification);
+        }
       } else if (
         reading &&
         sensorConfig &&
@@ -71,26 +84,34 @@ export class ObdSchedulerService {
         reading > sensorConfig.criticalRange.min &&
         reading < sensorConfig.criticalRange.max
       ) {
-        readingLog.readings[sensor] = {
-          sensor: sensor,
-          reading: reading,
-          severity: LogSeverity.CRITICAL,
-        };
-        const notification = new Notification();
-        notification.type = 'error';
-        notification.title = 'Sensor reading in the critical range';
-        notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.criticalRange.min} ${sensorConfig.unit} - ${sensorConfig.criticalRange.max} ${sensorConfig.unit})`;
-        await this.notificationsService.createNotification(notification);
+        if (user.settings.dataLogging.enabled) {
+          readingLog.readings[sensor] = {
+            sensor: sensor,
+            reading: reading,
+            severity: LogSeverity.CRITICAL,
+          };
+        }
+        if (user.settings.notifications.enabled) {
+          const notification = new Notification();
+          notification.type = 'error';
+          notification.title = 'Sensor reading in the critical range';
+          notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.criticalRange.min} ${sensorConfig.unit} - ${sensorConfig.criticalRange.max} ${sensorConfig.unit})`;
+          await this.notificationsService.createNotification(notification);
+        }
       } else {
-        readingLog.readings[sensor] = {
-          sensor: sensor,
-          reading: reading,
-          severity: LogSeverity.INFO,
-        };
+        if (user.settings.dataLogging.enabled) {
+          readingLog.readings[sensor] = {
+            sensor: sensor,
+            reading: reading,
+            severity: LogSeverity.INFO,
+          };
+        }
       }
     }
 
-    await this.readingLogService.create(readingLog);
+    if (user.settings.dataLogging.enabled) {
+      await this.readingLogService.create(readingLog);
+    }
   }
 
   @Cron('*/90 * * * * *')
