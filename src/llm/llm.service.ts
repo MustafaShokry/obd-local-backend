@@ -130,7 +130,7 @@ export class LlmService {
     }
 
     const llmQuery: llmQuery = {};
-    const { content, containsSpeech, language, voice, autoPlay } = askDto;
+    const { content, containsSpeech, language, autoPlay } = askDto;
 
     if (!content && !voiceFile) {
       throw new BadRequestException('Content or voice file is required');
@@ -197,7 +197,7 @@ export class LlmService {
       const ttsResult = await this.speechService.synthesizeSpeech(
         llmResponse.response,
         language as SupportedLanguage,
-        { playDirectly: true, voice },
+        { playDirectly: true },
       );
       console.log(ttsResult);
     }

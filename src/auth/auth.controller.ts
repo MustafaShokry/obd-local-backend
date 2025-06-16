@@ -32,11 +32,11 @@ export class AuthController {
     return this.authService.createQrCode();
   }
 
-  @Post('register-user')
-  async registerUser(
-    @Body() userData: RegisterUserDto,
-  ): Promise<{ message: string }> {
-    return this.authService.registerUser(userData);
+  @Post('register')
+  async register(
+    @Body() body: { carRefreshToken: string; payloadData: string },
+  ): Promise<{ accessToken: string }> {
+    return this.authService.register(body);
   }
 
   @Get('me')

@@ -7,6 +7,7 @@ import {
   CLOUD_PUBLIC_SIGNING_KEY_PATH,
   LOCAL_SIGNING_PRIVATE_KEY_PATH,
   LOCAL_SIGNING_PUBLIC_KEY_PATH,
+  ENCRYPTION_PRIVATE_KEY_PATH,
 } from './auth.constants';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class KeyService {
   private cloudSigningKey: KeyObject;
   private localSigningPrivateKey: KeyObject;
   private localSigningPublicKey: KeyObject;
+  private encryptionPrivateKey: KeyObject;
 
   async loadKeys() {
     const [
@@ -24,12 +26,14 @@ export class KeyService {
       cloudSigningPem,
       localSigningPem,
       localSigningPublicKeyPem,
+      encryptionPem,
     ] = await Promise.all([
       fs.readFile(SIGNING_PRIVATE_KEY_PATH, 'utf-8'),
       fs.readFile(CLOUD_PUBLIC_ENCRYPTION_KEY_PATH, 'utf-8'),
       fs.readFile(CLOUD_PUBLIC_SIGNING_KEY_PATH, 'utf-8'),
       fs.readFile(LOCAL_SIGNING_PRIVATE_KEY_PATH, 'utf-8'),
       fs.readFile(LOCAL_SIGNING_PUBLIC_KEY_PATH, 'utf-8'),
+      fs.readFile(ENCRYPTION_PRIVATE_KEY_PATH, 'utf-8'),
     ]);
 
     this.signingPrivateKey = await importPKCS8(signingPem, 'RS256');
@@ -39,6 +43,10 @@ export class KeyService {
     this.localSigningPublicKey = await importSPKI(
       localSigningPublicKeyPem,
       'RS256',
+    );
+    this.encryptionPrivateKey = await importPKCS8(
+      encryptionPem,
+      'RSA-OAEP-256',
     );
   }
 
@@ -60,5 +68,9 @@ export class KeyService {
 
   getLocalSigningPublicKey(): KeyObject {
     return this.localSigningPublicKey;
+  }
+
+  getEncryptionPrivateKey(): KeyObject {
+    return this.encryptionPrivateKey;
   }
 }

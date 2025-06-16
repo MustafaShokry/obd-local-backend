@@ -47,6 +47,17 @@ export class ObdService implements OnModuleInit {
     return this.vehicleProfile;
   }
 
+  async updateVehicleProfile(vehicleProfile: Partial<VehicleProfile>) {
+    await this.vehicleProfileRepository.update(
+      { id: this.vehicleProfile.id },
+      vehicleProfile,
+    );
+    this.vehicleProfile = {
+      ...this.vehicleProfile,
+      ...vehicleProfile,
+    } as VehicleProfile;
+  }
+
   getCurrentData(): ObdCurrentData {
     const supportedPIDs = this.vehicleProfile.supportedSensors.map(
       (sensor) => obdCurrentDataPid[sensor as unknown as obdCurrentDataPid],

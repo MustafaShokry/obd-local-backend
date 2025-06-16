@@ -20,9 +20,5 @@ export class AskDto {
 
   @IsString()
   @IsNotEmpty()
-  voice: string;
-
-  @IsString()
-  @IsNotEmpty()
   autoPlay: string;
 }

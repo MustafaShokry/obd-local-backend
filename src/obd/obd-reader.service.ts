@@ -52,16 +52,16 @@ export class ObdReaderService {
     // TODO: get vehicle info from the C program
     return {
       vin: '1HGBH41JXMN109186',
-      make: 'Honda',
-      model: 'Accord',
-      year: 2021,
-      trim: 'EX-L',
-      color: 'Metallic Blue',
-      engineSize: '2.0L',
-      fuelType: 'Gasoline',
-      transmission: 'CVT',
-      lastService: new Date('2024-03-15'),
-      nextService: new Date('2024-09-15'),
+      // make: 'Honda',
+      // model: 'Accord',
+      // year: 2021,
+      // trim: 'EX-L',
+      // color: 'Metallic Blue',
+      // engineSize: '2.0L',
+      // fuelType: 'Gasoline',
+      // transmission: 'CVT',
+      // lastService: new Date('2024-03-15'),
+      // nextService: new Date('2024-09-15'),
       protocol: ObdProtocol.ISO15765_4_CAN,
       supportedSensors: this.getSupportedPIDs().map((pid) => {
         const key = Object.keys(obdCurrentDataPid).find(

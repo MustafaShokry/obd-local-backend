@@ -47,10 +47,13 @@ export class SyncService {
     }
     await Promise.all([
       'readingIds' in data &&
+        data.readingIds.length > 0 &&
         (await this.readingLogService.markAsSynced(data.readingIds)),
       'diagnosticIds' in data &&
+        data.diagnosticIds.length > 0 &&
         (await this.diagnosticLogService.markAsSynced(data.diagnosticIds)),
       'eventIds' in data &&
+        data.eventIds.length > 0 &&
         (await this.eventLogService.markAsSynced(data.eventIds)),
     ]);
     const notification = new Notification();

@@ -2,20 +2,21 @@ import {
   Injectable,
   OnModuleInit,
   UnauthorizedException,
-  BadRequestException,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { KeyService } from './key.service';
-import * as QRCode from 'qrcode';
-import { CompactEncrypt, jwtVerify, SignJWT } from 'jose';
+import { CompactEncrypt, compactDecrypt, jwtVerify, SignJWT } from 'jose';
 import { RefreshTokenPayload } from './auth.types';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RegisterUserDto } from './dto/register-user.dto';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
+import { VehicleProfile } from 'src/obd/entities/vehicleProfile.entity';
+import { ObdService } from 'src/obd/obd.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -24,6 +25,8 @@ export class AuthService implements OnModuleInit {
     private readonly configService: ConfigService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Inject(forwardRef(() => ObdService))
+    private readonly obdService: ObdService,
   ) {}
 
   async onModuleInit() {
@@ -31,13 +34,14 @@ export class AuthService implements OnModuleInit {
   }
 
   async generatePairingToken(): Promise<{ token: string }> {
-    const payload = {
-      carId: 'pi-xyz-123',
-      vin: '1HGCM82633A004352',
-      model: 'Toyota Corolla',
-    };
+    const { vin, protocol, supportedSensors } =
+      this.obdService.getVehicleProfile();
 
-    const signedJWT = await new SignJWT(payload)
+    const signedJWT = await new SignJWT({
+      vin,
+      protocol,
+      supportedSensors,
+    })
       .setProtectedHeader({ alg: 'RS256' })
       .setIssuedAt()
       .setExpirationTime('5m')
@@ -91,54 +95,109 @@ export class AuthService implements OnModuleInit {
     }
   }
 
-  async registerUser(userData: RegisterUserDto): Promise<{ message: string }> {
-    const user = await this.userRepository.findOne({
-      where: { userId: userData.userId },
-    });
-    if (user) {
-      throw new BadRequestException('User already exists');
+  async verifyPairingPayload(pairingPayload: string): Promise<{
+    user: User;
+    vehicle: VehicleProfile;
+  }> {
+    let decryptedPayload;
+    try {
+      const { plaintext } = await compactDecrypt(
+        pairingPayload,
+        this.keyService.getEncryptionPrivateKey(),
+      );
+      decryptedPayload = new TextDecoder().decode(plaintext);
+    } catch (err) {
+      console.error('[❌] Failed to decrypt pairing token:', err);
+      throw new UnauthorizedException('Invalid pairing token');
     }
-    const settings = {
-      units: 'imperial',
-      language: 'en',
-      aiChat: {
-        language: 'en',
-        voice: 'en-US-Standard-A',
-        autoPlay: 'never',
-      },
-      theme: 'dark',
-      dashboard: {
-        selectedSensors: ['INTAKE_AIR_TEMPERATURE'],
-        refreshRate: 0.5,
-        showWarnings: true,
-        autoScale: true,
-        gaugeSize: 180,
-      },
-      notifications: {
-        enabled: true,
-        sound: false,
-        vibration: true,
-        criticalOnly: false,
-      },
-      dataLogging: {
-        enabled: false,
-        interval: 1000,
-        maxFileSize: 100,
-      },
-      display: {
-        keepScreenOn: false,
-        brightness: 80,
-        orientation: 'auto',
-      },
-    };
-    const newUser = this.userRepository.create({
-      ...userData,
-      settings,
-      created_at: new Date(),
-      updated_at: new Date(),
+
+    try {
+      const { payload }: any = await jwtVerify(
+        decryptedPayload,
+        this.keyService.getCloudSigningKey(),
+        {
+          algorithms: ['RS256'],
+        },
+      );
+      if (!payload || !payload.user || !payload.vehicle) {
+        throw new UnauthorizedException('Invalid pairing payload');
+      }
+
+      return {
+        user: payload.user,
+        vehicle: payload.vehicle,
+      };
+    } catch (error) {
+      console.error(error);
+      throw new UnauthorizedException('Invalid or expired pairing payload');
+    }
+  }
+
+  async register(body: {
+    carRefreshToken: string;
+    payloadData: string;
+  }): Promise<{ accessToken: string }> {
+    const { carRefreshToken, payloadData } = body;
+    const { user: userData, vehicle } =
+      await this.verifyPairingPayload(payloadData);
+
+    const user = await this.userRepository.findOne({
+      where: { userId: userData.id },
     });
-    await this.userRepository.save(newUser);
-    return { message: 'User registered successfully' };
+
+    if (!user) {
+      const settings = {
+        units: 'imperial',
+        language: 'en',
+        aiChat: {
+          language: 'en',
+          voice: 'en-US-Standard-A',
+          autoPlay: 'never',
+        },
+        theme: 'dark',
+        dashboard: {
+          selectedSensors: ['INTAKE_AIR_TEMPERATURE'],
+          refreshRate: 0.5,
+          showWarnings: true,
+          autoScale: true,
+          gaugeSize: 180,
+        },
+        notifications: {
+          enabled: true,
+          sound: false,
+          vibration: true,
+          criticalOnly: false,
+        },
+        dataLogging: {
+          enabled: false,
+          interval: 1000,
+          maxFileSize: 100,
+        },
+        display: {
+          keepScreenOn: false,
+          brightness: 80,
+          orientation: 'auto',
+        },
+      };
+      const newUser = this.userRepository.create({
+        ...userData,
+        userId: userData.id,
+        settings,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+      await this.userRepository.save(newUser);
+    }
+
+    await this.obdService.updateVehicleProfile(vehicle);
+    const payload = await this.verifyRefreshToken(carRefreshToken);
+
+    const accessToken = await this.issueAccessToken({
+      sub: payload.sub,
+      carId: payload.carId,
+      client: payload.client,
+    });
+    return { accessToken };
   }
 
   async getUserProfile(): Promise<User> {

@@ -1,5 +1,6 @@
 // TODO: change to /opt/car/keys/signing-private.pem
 export const SIGNING_PRIVATE_KEY_PATH = './keys/pi-private.pem';
+export const ENCRYPTION_PRIVATE_KEY_PATH = './keys/pi-private.pem';
 export const LOCAL_SIGNING_PRIVATE_KEY_PATH = './keys/pi-private-sign.pem';
 export const LOCAL_SIGNING_PUBLIC_KEY_PATH = './keys/pi-public-sign.pem';
 // TODO: change to /opt/car/keys/cloud-pub.pem
