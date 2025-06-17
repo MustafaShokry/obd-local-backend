@@ -13,9 +13,16 @@ import { EventLogController } from './eventLog.controller';
 import { ObdSchedulerService } from './logScheduler.service';
 import { AuthModule } from 'src/auth/auth.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';
+import { ReadingSummary } from './entities/readingSummary.entity';
+import { ReadingSummaryService } from './readingSummary.service';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ReadingLog, DiagnosticLog, EventLog]),
+    TypeOrmModule.forFeature([
+      ReadingLog,
+      DiagnosticLog,
+      EventLog,
+      ReadingSummary,
+    ]),
     ObdModule,
     AuthModule,
     NotificationsModule,
@@ -30,7 +37,13 @@ import { NotificationsModule } from 'src/notifications/notifications.module';
     DiagnosticLogService,
     EventLogService,
     ObdSchedulerService,
+    ReadingSummaryService,
   ],
-  exports: [ReadingLogService, DiagnosticLogService, EventLogService],
+  exports: [
+    ReadingLogService,
+    DiagnosticLogService,
+    EventLogService,
+    ReadingSummaryService,
+  ],
 })
 export class LogModule {}

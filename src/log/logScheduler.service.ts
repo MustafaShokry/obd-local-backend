@@ -11,6 +11,8 @@ import { NotificationsService } from 'src/notifications/notifications.service';
 import { Notification } from 'src/notifications/entities/notification.entity';
 import { SensorType } from 'src/obd/types/obd.types';
 import { AuthService } from 'src/auth/auth.service';
+import { ReadingSummary } from './entities/readingSummary.entity';
+import { ReadingSummaryService } from './readingSummary.service';
 
 @Injectable()
 export class ObdSchedulerService {
@@ -21,7 +23,15 @@ export class ObdSchedulerService {
     private readonly eventLogService: EventLogService,
     private readonly notificationsService: NotificationsService,
     private readonly authService: AuthService,
+    private readonly readingSummaryService: ReadingSummaryService,
   ) {}
+
+  private readingBuffer: {
+    [key in SensorType]?: number[];
+  } = {};
+  private currentWindowStart = new Date();
+  private lastNotificationTimestamps = new Map<SensorType, Date>();
+  private cooldownPeriodMs = 5 * 60 * 1000;
 
   @Cron('*/10 * * * * *')
   async collectReadingLogs() {
@@ -59,21 +69,39 @@ export class ObdSchedulerService {
         reading < sensorConfig.warning.max
       ) {
         if (user.settings.dataLogging.enabled) {
-          readingLog.readings[sensor] = {
-            sensor: sensor,
-            reading: reading,
-            severity: LogSeverity.WARNING,
-          };
+          // readingLog.readings[sensor] = {
+          //   sensor: sensor,
+          //   reading: reading,
+          //   severity: LogSeverity.WARNING,
+          // };
+          if (reading != null && typeof reading === 'number') {
+            if (!this.readingBuffer[sensor]) {
+              this.readingBuffer[sensor] = [];
+            }
+            this.readingBuffer[sensor].push(reading);
+          }
         }
         if (
           user.settings.notifications.enabled &&
           !user.settings.notifications.criticalOnly
         ) {
-          const notification = new Notification();
-          notification.type = 'warning';
-          notification.title = 'Sensor reading in the warning range';
-          notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.warning.min} ${sensorConfig.unit} - ${sensorConfig.warning.max} ${sensorConfig.unit})`;
-          await this.notificationsService.createNotification(notification);
+          const lastNotified = this.lastNotificationTimestamps.get(
+            sensor as SensorType,
+          );
+          if (
+            !lastNotified ||
+            Date.now() - lastNotified.getTime() > this.cooldownPeriodMs
+          ) {
+            const notification = new Notification();
+            notification.type = 'warning';
+            notification.title = 'Sensor reading in the warning range';
+            notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.warning.min} ${sensorConfig.unit} - ${sensorConfig.warning.max} ${sensorConfig.unit})`;
+            await this.notificationsService.createNotification(notification);
+            this.lastNotificationTimestamps.set(
+              sensor as SensorType,
+              new Date(),
+            );
+          }
         }
       } else if (
         reading &&
@@ -92,26 +120,104 @@ export class ObdSchedulerService {
           };
         }
         if (user.settings.notifications.enabled) {
-          const notification = new Notification();
-          notification.type = 'error';
-          notification.title = 'Sensor reading in the critical range';
-          notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.criticalRange.min} ${sensorConfig.unit} - ${sensorConfig.criticalRange.max} ${sensorConfig.unit})`;
-          await this.notificationsService.createNotification(notification);
+          const lastNotified = this.lastNotificationTimestamps.get(
+            sensor as SensorType,
+          );
+          if (
+            !lastNotified ||
+            Date.now() - lastNotified.getTime() > this.cooldownPeriodMs
+          ) {
+            const notification = new Notification();
+            notification.type = 'error';
+            notification.title = 'Sensor reading in the critical range';
+            notification.message = `${sensorConfig.title}: ${reading} ${sensorConfig.unit} (${sensorConfig.criticalRange.min} ${sensorConfig.unit} - ${sensorConfig.criticalRange.max} ${sensorConfig.unit})`;
+            await this.notificationsService.createNotification(notification);
+            this.lastNotificationTimestamps.set(
+              sensor as SensorType,
+              new Date(),
+            );
+          }
         }
       } else {
         if (user.settings.dataLogging.enabled) {
-          readingLog.readings[sensor] = {
-            sensor: sensor,
-            reading: reading,
-            severity: LogSeverity.INFO,
-          };
+          // readingLog.readings[sensor] = {
+          //   sensor: sensor,
+          //   reading: reading,
+          //   severity: LogSeverity.INFO,
+          // };
+          if (reading != null && typeof reading === 'number') {
+            if (!this.readingBuffer[sensor]) {
+              this.readingBuffer[sensor] = [];
+            }
+            this.readingBuffer[sensor].push(reading);
+          }
         }
       }
     }
 
-    if (user.settings.dataLogging.enabled) {
+    if (
+      user.settings.dataLogging.enabled &&
+      Object.keys(readingLog.readings).length > 0
+    ) {
       await this.readingLogService.create(readingLog);
     }
+  }
+
+  @Cron('0 * * * * *') // every minute
+  async summarizeReadings() {
+    const summaries = {} as ReadingSummary['summaries'];
+    const now = new Date();
+
+    for (const [sensor, values] of Object.entries(this.readingBuffer)) {
+      if (values && values.length > 0) {
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+        const severity = this.getSeverity(sensor as SensorType, avg);
+
+        summaries[sensor as SensorType] = {
+          min,
+          max,
+          avg,
+          severity,
+        };
+      }
+    }
+    if (Object.keys(summaries).length === 0) {
+      return;
+    }
+
+    const summary = new ReadingSummary();
+    summary.intervalStart = this.currentWindowStart;
+    summary.intervalEnd = now;
+    summary.summaries = summaries;
+
+    await this.readingSummaryService.create(summary);
+
+    // reset buffer and window
+    this.currentWindowStart = now;
+    Object.keys(this.readingBuffer).forEach(
+      (key) => (this.readingBuffer[key] = []),
+    );
+  }
+
+  getSeverity(sensor: SensorType, value: number): LogSeverity {
+    const { sensorConfigs } = this.obdService.getConfig(true);
+    const config = sensorConfigs.find((s) => s.key === sensor);
+    if (!config) {
+      return LogSeverity.INFO;
+    }
+    if (
+      config.criticalRange?.min < value &&
+      value < config.criticalRange?.max
+    ) {
+      return LogSeverity.CRITICAL;
+    }
+    if (config.warning?.min < value && value < config.warning?.max) {
+      return LogSeverity.WARNING;
+    }
+    return LogSeverity.INFO;
   }
 
   @Cron('*/90 * * * * *')
