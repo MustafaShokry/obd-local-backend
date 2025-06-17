@@ -212,7 +212,7 @@ export class ObdSchedulerService {
       config.criticalRange?.min < value &&
       value < config.criticalRange?.max
     ) {
-      return LogSeverity.CRITICAL;
+      return LogSeverity.ERROR;
     }
     if (config.warning?.min < value && value < config.warning?.max) {
       return LogSeverity.WARNING;
@@ -246,7 +246,7 @@ export class ObdSchedulerService {
         diagnosticLog.code = dtc.code;
         diagnosticLog.description = dtc.description;
         diagnosticLog.status = DiagnosticStatus.ACTIVE;
-        diagnosticLog.severity = LogSeverity.CRITICAL;
+        diagnosticLog.severity = LogSeverity.ERROR;
         diagnosticLog.occurrenceCount = 1;
         diagnosticLog.lastOccurrence = new Date();
         await this.diagnosticLogService.create(diagnosticLog);
@@ -277,7 +277,7 @@ export class ObdSchedulerService {
         diagnosticLog.code = dtc.code;
         diagnosticLog.description = dtc.description;
         diagnosticLog.status = DiagnosticStatus.PENDING;
-        diagnosticLog.severity = LogSeverity.CRITICAL;
+        diagnosticLog.severity = LogSeverity.ERROR;
         diagnosticLog.occurrenceCount = 1;
         diagnosticLog.lastOccurrence = new Date();
         await this.diagnosticLogService.create(diagnosticLog);
