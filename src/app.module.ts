@@ -12,6 +12,8 @@ import { AuthModule } from './auth/auth.module';
 import { LlmModule } from './llm/llm.module';
 import { SpeechModule } from './speech/speech.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -25,6 +27,15 @@ import { NotificationsModule } from './notifications/notifications.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       synchronize: true,
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      exclude: ['/api/*'],
+      // serveRoot: '/',
+      // serveStaticOptions: {
+      //   index: 'index.html',
+      // },
+    }),
+
     ScheduleModule.forRoot(),
     ObdModule,
     LogModule,
