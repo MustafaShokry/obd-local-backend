@@ -2,6 +2,7 @@ import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { AccessTokenGuard } from 'src/auth/accessToken.guard';
 import { UseGuards } from '@nestjs/common';
+import { MarkReadDto } from './dto/mark-read.dto';
 
 @Controller('notifications')
 @UseGuards(AccessTokenGuard)
@@ -24,7 +25,7 @@ export class NotificationsController {
   }
 
   @Patch('read')
-  markAsRead(@Body('idList') ids: string[]) {
-    return this.notificationsService.markAsRead(ids);
+  markAsRead(@Body() markReadDto: MarkReadDto) {
+    return this.notificationsService.markAsRead(markReadDto.ids);
   }
 }
