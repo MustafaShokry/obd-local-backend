@@ -25,6 +25,7 @@ export class ReadingSummaryService {
     return summaries.map((s) => ({
       id: s.id,
       timestamp: s.intervalEnd,
+      type: 'readings',
       ...s.summaries,
     }));
   }

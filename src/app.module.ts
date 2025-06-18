@@ -30,10 +30,10 @@ import { join } from 'path';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'public'),
       exclude: ['/api/*'],
-      // serveRoot: '/',
-      // serveStaticOptions: {
-      //   index: 'index.html',
-      // },
+      serveRoot: '/',
+      serveStaticOptions: {
+        index: 'index.html',
+      },
     }),
 
     ScheduleModule.forRoot(),

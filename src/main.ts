@@ -6,7 +6,9 @@ import * as cookieParser from 'cookie-parser';
 async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    abortOnError: false,
+  });
   if (process.env.STAGE === 'dev') {
     // TODO: change to the actual IP and port in production
     app.enableCors({

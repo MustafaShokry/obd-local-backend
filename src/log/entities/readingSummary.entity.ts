@@ -20,6 +20,7 @@ export class ReadingSummary {
       max: number;
       avg: number;
       severity: LogSeverity;
+      description: string;
     };
   };
 

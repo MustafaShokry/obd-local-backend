@@ -175,12 +175,14 @@ export class ObdSchedulerService {
         const avg = values.reduce((a, b) => a + b, 0) / values.length;
 
         const severity = this.getSeverity(sensor as SensorType, avg);
+        const description = this.getDescription(sensor as SensorType, avg);
 
         summaries[sensor as SensorType] = {
           min,
           max,
           avg,
           severity,
+          description,
         };
       }
     }
@@ -200,6 +202,24 @@ export class ObdSchedulerService {
     Object.keys(this.readingBuffer).forEach(
       (key) => (this.readingBuffer[key] = []),
     );
+  }
+
+  getDescription(sensor: SensorType, value: number): string {
+    const { sensorConfigs } = this.obdService.getConfig(true);
+    const config = sensorConfigs.find((s) => s.key === sensor);
+    if (!config) {
+      return '';
+    }
+    if (
+      config.criticalRange?.min < value &&
+      value < config.criticalRange?.max
+    ) {
+      return `${config.title} is in critical range`;
+    }
+    if (config.warning?.min < value && value < config.warning?.max) {
+      return `${config.title} is in warning range`;
+    }
+    return `${config.title} is within normal range`;
   }
 
   getSeverity(sensor: SensorType, value: number): LogSeverity {
