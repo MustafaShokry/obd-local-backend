@@ -107,8 +107,25 @@ export class LlmController {
           'audio/wav',
           'audio/mp3',
           'audio/mp4',
+          'audio/x-m4a',
+          'application/octet-stream',
         ];
-        if (allowedMimes.includes(file.mimetype)) {
+        // Also check file extension as a fallback
+        const allowedExtensions = [
+          '.m4a',
+          '.wav',
+          '.mp3',
+          '.mp4',
+          '.ogg',
+          '.webm',
+          '.aac',
+          '.flac',
+        ];
+        const fileExtension = path.extname(file.originalname).toLowerCase();
+        if (
+          allowedMimes.includes(file.mimetype) ||
+          allowedExtensions.includes(fileExtension)
+        ) {
           cb(null, true);
         } else {
           cb(
