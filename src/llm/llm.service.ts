@@ -16,6 +16,14 @@ import { ObdService } from 'src/obd/obd.service';
 import { UpdateChatTitleDto } from './dto/update-chat-title.dto';
 import type { SupportedLanguage } from 'src/speech/speech.service';
 
+// Add type definitions for stream data
+interface StreamChunk {
+  response_chunk?: string;
+  status?: string;
+  final_response?: string;
+  error?: string;
+}
+
 @Injectable()
 export class LlmService {
   constructor(
@@ -221,167 +229,90 @@ export class LlmService {
         'Content-Type': 'application/json',
       },
     });
-    const data = (await response.json()) as llmResponse;
-    return data;
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // Check if response is a stream (Server-Sent Events)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/event-stream')) {
+      // Handle streaming response
+      return this.collectStreamResponse(response);
+    } else {
+      // Handle regular JSON response
+      const data = (await response.json()) as llmResponse;
+      return data;
+    }
   }
 
-  // async queryLlmStream(
-  //   llmQuery: llmQuery,
-  // ): Promise<ReadableStream<Uint8Array>> {
-  //   console.log(llmQuery);
-  //   const response = await fetch('http://localhost:5000/diagnose', {
-  //     method: 'POST',
-  //     body: JSON.stringify(llmQuery),
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //   });
+  private async collectStreamResponse(
+    response: Response,
+  ): Promise<llmResponse> {
+    if (!response.body) {
+      throw new Error('No response body received');
+    }
 
-  //   if (!response.body) {
-  //     throw new Error('No response body received');
-  //   }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullResponse = '';
 
-  //   return response.body;
-  // }
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
 
-  // async processStreamResponse(
-  //   stream: ReadableStream<Uint8Array>,
-  //   onChunk?: (chunk: string) => void,
-  // ): Promise<llmResponse> {
-  //   const reader = stream.getReader();
-  //   const decoder = new TextDecoder();
-  //   let fullResponse = '';
+        if (done) break;
 
-  //   try {
-  //     while (true) {
-  //       const { done, value } = await reader.read();
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-  //       if (done) break;
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
-  //       const chunk = decoder.decode(value, { stream: true });
-  //       fullResponse += chunk;
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonData = line.slice(6); // Remove 'data: ' prefix
+              if (jsonData.trim()) {
+                const parsedData = JSON.parse(jsonData) as StreamChunk;
 
-  //       if (onChunk) {
-  //         onChunk(chunk);
-  //       }
-  //     }
-  //   } finally {
-  //     reader.releaseLock();
-  //   }
+                // Handle different types of data from Flask
+                if (parsedData.response_chunk) {
+                  // Accumulate response chunks
+                  fullResponse += parsedData.response_chunk;
+                } else if (parsedData.status === 'complete') {
+                  // Handle completion
+                  if (parsedData.final_response) {
+                    fullResponse = parsedData.final_response;
+                  }
+                  break; // Exit the loop when complete
+                } else if (parsedData.error) {
+                  // Handle errors from Flask
+                  throw new Error(parsedData.error);
+                }
+              }
+            } catch (parseError) {
+              console.error(
+                'Error parsing SSE data:',
+                parseError,
+                'Raw line:',
+                line,
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
 
-  //   // Try to parse the full response as JSON
-  //   try {
-  //     return JSON.parse(fullResponse) as llmResponse;
-  //   } catch {
-  //     // If it's not valid JSON, treat it as plain text response
-  //     return {
-  //       response: fullResponse,
-  //       sensor_data_used: false,
-  //     };
-  //   }
-  // }
-
-  // async askWithStreaming(
-  //   chatId: string,
-  //   askDto: AskDto,
-  //   voiceFile?: string,
-  //   onChunk?: (chunk: string) => void,
-  // ): Promise<
-  //   llmResponse & { user_message: ChatMessage; assistant_message: ChatMessage }
-  // > {
-  //   const chat = await this.chatSessionRepository.findOne({
-  //     where: { id: chatId },
-  //   });
-  //   if (!chat) {
-  //     throw new NotFoundException('Chat not found');
-  //   }
-
-  //   const llmQuery: llmQuery = {};
-  //   const { content, containsSpeech, language, autoPlay } = askDto;
-
-  //   if (!content && !voiceFile) {
-  //     throw new BadRequestException('Content or voice file is required');
-  //   }
-
-  //   if (containsSpeech && !voiceFile) {
-  //     throw new BadRequestException('Voice file is required');
-  //   }
-
-  //   const messageHistory = await this.chatMessageRepository.find({
-  //     where: { session: { id: chatId } },
-  //     order: { timestamp: 'ASC' },
-  //   });
-
-  //   const qaPairs: { question: string; answer: string }[] = [];
-
-  //   for (let i = 0; i < messageHistory.length - 1; i++) {
-  //     const msg = messageHistory[i];
-  //     const nextMsg = messageHistory[i + 1];
-
-  //     if (msg.role === 'user' && nextMsg.role === 'assistant') {
-  //       qaPairs.push({ question: msg.content, answer: nextMsg.content });
-  //       i++;
-  //     }
-  //   }
-
-  //   llmQuery.chat_history = qaPairs;
-  //   llmQuery.query = content;
-  //   llmQuery.sensor_data = this.obdService.getCurrentData();
-
-  //   if (containsSpeech && voiceFile) {
-  //     const result = await this.speechService.transcribeVoiceFile(voiceFile);
-  //     if (result.success) {
-  //       llmQuery.voice_text = result.text;
-  //     } else {
-  //       throw new Error('Failed to transcribe voice file');
-  //     }
-  //   }
-
-  //   // Get the stream
-  //   const stream = await this.queryLlmStream(llmQuery);
-
-  //   // Process the stream with real-time chunk handling
-  //   const llmResponse = await this.processStreamResponse(stream, onChunk);
-
-  //   const userMessage = this.chatMessageRepository.create({
-  //     session: { id: chatId },
-  //     content: containsSpeech
-  //       ? `${content}, voice: ${llmQuery.voice_text}`
-  //       : content,
-  //     role: 'user',
-  //   });
-  //   await this.chatMessageRepository.save(userMessage);
-
-  //   const assistantMessage = this.chatMessageRepository.create({
-  //     session: { id: chatId },
-  //     content: llmResponse.response,
-  //     role: 'assistant',
-  //   });
-  //   await this.chatMessageRepository.save(assistantMessage);
-  //   await this.chatSessionRepository.update(chatId, {
-  //     lastMessageDate: assistantMessage.timestamp,
-  //     lastMessage: assistantMessage.content,
-  //   });
-
-  //   if (
-  //     autoPlay === 'always' ||
-  //     (autoPlay === 'long' && llmResponse.response.length > 200)
-  //   ) {
-  //     const ttsResult = await this.speechService.synthesizeSpeech(
-  //       llmResponse.response,
-  //       language as SupportedLanguage,
-  //       { playDirectly: true },
-  //     );
-  //     console.log(ttsResult);
-  //   }
-
-  //   return {
-  //     response: llmResponse.response,
-  //     sensor_data_used: false,
-  //     user_message: userMessage,
-  //     assistant_message: assistantMessage,
-  //   };
-  // }
+    return {
+      response: fullResponse,
+      sensor_data_used: false, // You might want to determine this from the response
+    };
+  }
 
   async queryLlmStream(
     llmQuery: llmQuery,
@@ -510,7 +441,7 @@ export class LlmService {
             try {
               const jsonData = line.slice(6); // Remove 'data: ' prefix
               if (jsonData.trim()) {
-                const parsedData = JSON.parse(jsonData);
+                const parsedData = JSON.parse(jsonData) as StreamChunk;
 
                 // Forward the parsed data to the client
                 if (onChunk) {
