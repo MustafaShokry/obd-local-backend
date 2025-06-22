@@ -118,6 +118,12 @@ export class ObdSchedulerService {
             reading: reading,
             severity: LogSeverity.CRITICAL,
           };
+          if (reading != null && typeof reading === 'number') {
+            if (!this.readingBuffer[sensor]) {
+              this.readingBuffer[sensor] = [];
+            }
+            this.readingBuffer[sensor].push(reading);
+          }
         }
         if (user.settings.notifications.enabled) {
           const lastNotified = this.lastNotificationTimestamps.get(

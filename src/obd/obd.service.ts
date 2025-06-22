@@ -131,4 +131,9 @@ export class ObdService implements OnModuleInit {
   clearFaults(): { success: boolean } {
     return this.obdReaderService.clearFaults();
   }
+
+  async unlink(): Promise<{ message: string }> {
+    await this.vehicleProfileRepository.delete(this.vehicleProfile.id);
+    return { message: 'Vehicle profile unlinked' };
+  }
 }

@@ -22,8 +22,19 @@ export class ReadingLogService {
     return this.readingLogRepository.find();
   }
 
-  async getUnsynced(): Promise<ReadingLog[]> {
-    return this.readingLogRepository.find({ where: { synced: false } });
+  async getUnsynced(skip?: number, take?: number): Promise<ReadingLog[]> {
+    const options: {
+      where: { synced: boolean };
+      skip?: number;
+      take?: number;
+    } = { where: { synced: false } };
+    if (skip !== undefined) options.skip = skip;
+    if (take !== undefined) options.take = take;
+    return this.readingLogRepository.find(options);
+  }
+
+  async getUnsyncedCount(): Promise<number> {
+    return this.readingLogRepository.count({ where: { synced: false } });
   }
 
   async markAsSynced(ids: string[]): Promise<void> {

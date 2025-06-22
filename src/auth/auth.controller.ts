@@ -7,11 +7,11 @@ import {
   Res,
   Headers,
   Patch,
+  Delete,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
-import { RegisterUserDto } from './dto/register-user.dto';
 import { User } from './entities/user.entity';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
@@ -28,7 +28,9 @@ export class AuthController {
   }
 
   @Get('qr-code')
-  getQrCode(): { qrCode: string } {
+  getQrCode(): {
+    qrCode: { ip: string; port: string; network: string; password: string };
+  } {
     return this.authService.createQrCode();
   }
 
@@ -44,11 +46,22 @@ export class AuthController {
     return this.authService.getUserProfile();
   }
 
+  @Get('is-logged-in')
+  async isUserLoggedIn(): Promise<boolean> {
+    return this.authService.isUserLoggedIn();
+  }
+
   @Patch('me/settings')
   async updateSettings(
     @Body() settings: UpdateSettingsDto,
   ): Promise<User['settings']> {
     return this.authService.updateSettings(settings);
+  }
+  @Patch('me/settings/dashboard')
+  async updateDashboardSettings(
+    @Body() settings: UpdateSettingsDto,
+  ): Promise<User['settings']> {
+    return this.authService.updateDashboardSettings(settings);
   }
 
   @Post('refresh')
@@ -103,5 +116,10 @@ export class AuthController {
     });
 
     return { message: 'front authenticated' };
+  }
+
+  @Delete('unlink')
+  async unlink(): Promise<{ message: string }> {
+    return this.authService.unlink();
   }
 }

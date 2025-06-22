@@ -29,8 +29,19 @@ export class EventLogService {
     return this.eventLogRepository.find({ where: { type } });
   }
 
-  async getUnsynced(): Promise<EventLog[]> {
-    return this.eventLogRepository.find({ where: { synced: false } });
+  async getUnsynced(skip?: number, take?: number): Promise<EventLog[]> {
+    const options: {
+      where: { synced: boolean };
+      skip?: number;
+      take?: number;
+    } = { where: { synced: false } };
+    if (skip !== undefined) options.skip = skip;
+    if (take !== undefined) options.take = take;
+    return this.eventLogRepository.find(options);
+  }
+
+  async getUnsyncedCount(): Promise<number> {
+    return this.eventLogRepository.count({ where: { synced: false } });
   }
 
   async markAsSynced(ids: string[]): Promise<void> {

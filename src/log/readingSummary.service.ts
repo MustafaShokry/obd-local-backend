@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { ReadingSummary } from './entities/readingSummary.entity';
-import { LogSeverity } from './types/logs.types';
 
 @Injectable()
 export class ReadingSummaryService {
@@ -28,5 +27,24 @@ export class ReadingSummaryService {
       type: 'readings',
       ...s.summaries,
     }));
+  }
+
+  async getUnsynced(skip?: number, take?: number): Promise<ReadingSummary[]> {
+    const options: {
+      where: { synced: boolean };
+      skip?: number;
+      take?: number;
+    } = { where: { synced: false } };
+    if (skip !== undefined) options.skip = skip;
+    if (take !== undefined) options.take = take;
+    return this.readingSummaryRepository.find(options);
+  }
+
+  async getUnsyncedCount(): Promise<number> {
+    return this.readingSummaryRepository.count({ where: { synced: false } });
+  }
+
+  async markAsSynced(ids: string[]): Promise<void> {
+    await this.readingSummaryRepository.update(ids, { synced: true });
   }
 }

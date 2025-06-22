@@ -17,6 +17,7 @@ import { Repository } from 'typeorm';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { VehicleProfile } from 'src/obd/entities/vehicleProfile.entity';
 import { ObdService } from 'src/obd/obd.service';
+import { networkInterfaces } from 'os';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -57,21 +58,33 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  createQrCode(): { qrCode: string } {
-    // const generateQR = async (text: string) => {
-    //   try {
-    //     const qrCode = (await QRCode.toDataURL(text)) as string;
-    //     return qrCode;
-    //   } catch (err) {
-    //     console.error(err);
-    //     throw new Error('QR code generation failed');
-    //   }
-    // };
+  getLocalIpAddress(): string {
+    const interfaces = networkInterfaces();
 
-    const ip = this.configService.get('HOST') as string;
+    for (const iface of Object.values(interfaces)) {
+      for (const config of iface || []) {
+        if (config.family === 'IPv4' && !config.internal) {
+          return config.address;
+        }
+      }
+    }
+
+    throw new Error('No local IP address found');
+  }
+
+  createQrCode(): {
+    qrCode: { ip: string; port: string; network: string; password: string };
+  } {
+    const ip = this.getLocalIpAddress();
     const port = this.configService.get('PORT') as string;
-    const qrCode = `http://${ip}:${port}/api/auth/pairing-token`;
-    // const qrCode = await generateQR(qrCodeData);
+    const ssid = this.configService.get('SSID') as string;
+    const password = this.configService.get('PASSWORD') as string;
+    const qrCode = {
+      ip,
+      port,
+      network: ssid,
+      password,
+    };
 
     return { qrCode };
   }
@@ -257,9 +270,31 @@ export class AuthService implements OnModuleInit {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    // await this.userRepository.update(user.id, {
+    //   settings: settings.settings,
+    // });
+    return settings.settings;
+  }
+
+  async updateDashboardSettings(
+    settings: UpdateSettingsDto,
+  ): Promise<User['settings']> {
+    const user = await this.userRepository.findOne({
+      where: { userId: settings.userId },
+    });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     await this.userRepository.update(user.id, {
       settings: settings.settings,
     });
     return settings.settings;
+  }
+
+  async unlink(): Promise<{ message: string }> {
+    const user = await this.getUserProfile();
+    await this.obdService.unlink();
+    await this.userRepository.delete(user.id);
+    return { message: 'User unlinked' };
   }
 }

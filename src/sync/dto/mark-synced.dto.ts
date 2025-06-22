@@ -15,4 +15,9 @@ export class MarkSyncedDto {
   @IsString({ each: true })
   @IsOptional()
   eventIds: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  summaryIds: string[];
 }

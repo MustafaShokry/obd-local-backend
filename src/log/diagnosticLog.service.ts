@@ -30,8 +30,19 @@ export class DiagnosticLogService {
     });
   }
 
-  async getUnsynced(): Promise<DiagnosticLog[]> {
-    return this.diagnosticLogRepository.find({ where: { synced: false } });
+  async getUnsynced(skip?: number, take?: number): Promise<DiagnosticLog[]> {
+    const options: {
+      where: { synced: boolean };
+      skip?: number;
+      take?: number;
+    } = { where: { synced: false } };
+    if (skip !== undefined) options.skip = skip;
+    if (take !== undefined) options.take = take;
+    return this.diagnosticLogRepository.find(options);
+  }
+
+  async getUnsyncedCount(): Promise<number> {
+    return this.diagnosticLogRepository.count({ where: { synced: false } });
   }
 
   async findByCodeAndStatus(
