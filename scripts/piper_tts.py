@@ -6,18 +6,30 @@ import subprocess
 import tempfile
 import re
 import glob
+import platform
 from pathlib import Path
 
 
 class PiperTTS:
     def __init__(self, script_dir=None):
-        # Set the script directory (where piper.exe and voices are located)
+        # Set the script directory (where piper executable and voices are located)
         if script_dir is None:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             script_dir = os.path.join(script_dir, 'piper')
 
         self.script_dir = Path(script_dir)
-        self.piper_executable = self.script_dir / "piper.exe"
+
+        # Detect OS and set appropriate executable name
+        self.is_windows = platform.system() == "Windows"
+        self.is_linux = platform.system() == "Linux"
+        self.is_macos = platform.system() == "Darwin"
+
+        # Set executable name based on OS
+        if self.is_windows:
+            self.piper_executable = self.script_dir / "piper.exe"
+        else:
+            self.piper_executable = self.script_dir / "piper"
+
         self.voices_dir = self.script_dir / "voices"
 
         # Language to voice model mapping
@@ -40,8 +52,15 @@ class PiperTTS:
         self.available_voices = self._scan_available_voices()
 
     def _check_piper_installation(self):
-        """Check if piper executable exists."""
-        return self.piper_executable.exists()
+        """Check if piper executable exists and is executable on Unix systems."""
+        if not self.piper_executable.exists():
+            return False
+
+        # On Unix systems, check if the file is executable
+        if not self.is_windows:
+            return os.access(self.piper_executable, os.X_OK)
+
+        return True
 
     def _scan_available_voices(self):
         """Scan the voices directory for available .onnx files."""
@@ -133,17 +152,34 @@ class PiperTTS:
 
     def get_installation_instructions(self):
         """Get installation instructions for Piper TTS."""
-        return {
+        base_instructions = {
             "download_url": "https://github.com/rhasspy/piper/releases",
             "voices_url": "https://github.com/rhasspy/piper/blob/master/VOICES.md",
-            "setup_instructions": [
+        }
+
+        if self.is_windows:
+            base_instructions["setup_instructions"] = [
                 "1. Download piper.exe from the releases page",
-                "2. Place piper.exe in the scripts folder",
-                "3. Create a 'voices' folder in the scripts directory",
+                "2. Place piper.exe in the scripts/piper folder",
+                "3. Create a 'voices' folder in the scripts/piper directory",
                 "4. Download .onnx voice models and place them in the voices folder",
                 "5. Each voice model should have a corresponding .onnx.json config file"
             ]
-        }
+        else:
+            base_instructions["setup_instructions"] = [
+                "1. Download piper binary for your platform from the releases page",
+                "2. Place the piper binary in the scripts/piper folder",
+                "3. Make the piper binary executable: chmod +x scripts/piper/piper",
+                "4. Create a 'voices' folder in the scripts/piper directory",
+                "5. Download .onnx voice models and place them in the voices folder",
+                "6. Each voice model should have a corresponding .onnx.json config file",
+                "7. For audio playback, install an audio player:",
+                "   - Ubuntu/Debian: sudo apt install pulseaudio-utils (for paplay)",
+                "   - Or install ALSA: sudo apt install alsa-utils (for aplay)",
+                "   - Or install media players: sudo apt install mpg123 mpv vlc"
+            ]
+
+        return base_instructions
 
     def text_to_speech_file(self, text, language="en", output_file=None,
                             speed=1.0, noise_scale=0.667, length_scale=1.0):
@@ -259,13 +295,51 @@ class PiperTTS:
             if not result['success']:
                 return result
 
-            # Try to play the file (Windows)
+            # Try to play the file based on OS
             try:
-                if os.name == 'nt':  # Windows
+                if self.is_windows:
+                    # Windows - use PowerShell Media.SoundPlayer
                     subprocess.run(['powershell', '-c', f'(New-Object Media.SoundPlayer "{temp_wav_file.name}").PlaySync()'],
                                    check=True, capture_output=True)
-                else:  # Unix-like systems
-                    # Try common audio players
+                elif self.is_macos:
+                    # macOS - use afplay
+                    subprocess.run(['afplay', temp_wav_file.name],
+                                   check=True, capture_output=True)
+                elif self.is_linux:
+                    # Linux - try common audio players in order of preference
+                    players = ['paplay', 'aplay', 'mpg123', 'mpv', 'cvlc']
+                    played = False
+
+                    for player in players:
+                        try:
+                            if player == 'paplay':
+                                # PulseAudio
+                                subprocess.run(
+                                    [player, temp_wav_file.name], check=True, capture_output=True)
+                                played = True
+                                break
+                            elif player == 'aplay':
+                                # ALSA
+                                subprocess.run(
+                                    [player, temp_wav_file.name], check=True, capture_output=True)
+                                played = True
+                                break
+                            elif player in ['mpg123', 'mpv', 'cvlc']:
+                                # Media players that can handle WAV
+                                subprocess.run(
+                                    [player, temp_wav_file.name], check=True, capture_output=True)
+                                played = True
+                                break
+                        except (subprocess.CalledProcessError, FileNotFoundError):
+                            continue
+
+                    if not played:
+                        return {
+                            "success": False,
+                            "error": "No audio player found. Install one of: paplay (PulseAudio), aplay (ALSA), mpg123, mpv, or vlc."
+                        }
+                else:
+                    # Fallback for other Unix systems
                     players = ['aplay', 'paplay', 'afplay', 'play']
                     for player in players:
                         try:
@@ -329,7 +403,8 @@ class PiperTTS:
 
 def main():
     """Command line interface."""
-    parser = argparse.ArgumentParser(description='Offline TTS using Piper TTS')
+    parser = argparse.ArgumentParser(
+        description='Offline TTS using Piper TTS (Windows/Linux/macOS)')
 
     # Support both direct text and file input
     group = parser.add_mutually_exclusive_group(required=True)
@@ -352,7 +427,7 @@ def main():
     parser.add_argument('--format', choices=['json', 'text'], default='json',
                         help='Output format')
     parser.add_argument(
-        '--script-dir', help='Directory containing piper.exe and voices folder')
+        '--script-dir', help='Directory containing piper executable and voices folder')
 
     args = parser.parse_args()
 

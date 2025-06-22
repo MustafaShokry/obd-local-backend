@@ -10,19 +10,82 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 
 
+def find_vosk_model_path(language="en"):
+    """
+    Find the VOSK model path for the given language.
+    :param language: 'en' for English, 'ar' for Arabic
+    :return: Path to the VOSK model directory
+    """
+    models = {
+        "en": "en-us",
+        "ar": "ar",
+    }
+    model_name = models.get(language)
+
+    if not model_name:
+        raise ValueError(f"Unsupported language: {language}")
+
+    # Common model paths on different systems
+    possible_paths = [
+        # Current directory
+        os.path.join(os.getcwd(), model_name),
+        # Script directory
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), model_name),
+        # User home directory
+        os.path.expanduser(f"~/vosk-models/{model_name}"),
+        # System-wide installation (Linux)
+        f"/usr/share/vosk-models/{model_name}",
+        f"/usr/local/share/vosk-models/{model_name}",
+        # Windows common paths
+        os.path.join(os.environ.get('APPDATA', ''), 'vosk-models', model_name),
+        # macOS common paths
+        os.path.expanduser(
+            f"~/Library/Application Support/vosk-models/{model_name}"),
+    ]
+
+    for path in possible_paths:
+        if os.path.exists(path) and os.path.isdir(path):
+            return path
+
+    # If no model found, return the model name for VOSK to try its default resolution
+    return model_name
+
+
 def load_vosk_model(language="en"):
     """
     Load the VOSK model based on the selected language.
     :param language: 'en' for English, 'ar' for Arabic
     :return: VOSK model object
     """
-    models = {
-        "en": "en-us",
-        "ar": "ar",
-    }
-    model = models.get(language)
+    try:
+        model_path = find_vosk_model_path(language)
 
-    return Model(lang=model)
+        # Try to load the model
+        if os.path.exists(model_path) and os.path.isdir(model_path):
+            return Model(model_path)
+        else:
+            # Fallback to VOSK's default model resolution
+            return Model(lang=model_path)
+
+    except Exception as e:
+        raise Exception(
+            f"Failed to load VOSK model for language '{language}': {str(e)}")
+
+
+def check_ffmpeg_availability():
+    """
+    Check if ffmpeg is available on the system.
+    :return: True if ffmpeg is available, False otherwise
+    """
+    try:
+        import subprocess
+        result = subprocess.run(['ffmpeg', '-version'],
+                                capture_output=True,
+                                text=True,
+                                timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        return False
 
 
 def process_audio_file(file_path, language="en"):
@@ -106,6 +169,16 @@ def convert_audio_to_wav(input_file, output_file=None):
     try:
         import subprocess
 
+        # Check if ffmpeg is available
+        if not check_ffmpeg_availability():
+            raise Exception(
+                "ffmpeg not found. Please install ffmpeg:\n"
+                "  Ubuntu/Debian: sudo apt-get install ffmpeg\n"
+                "  CentOS/RHEL: sudo yum install ffmpeg\n"
+                "  Arch: sudo pacman -S ffmpeg\n"
+                "  Or provide a WAV file directly."
+            )
+
         if output_file is None:
             base_name = os.path.splitext(input_file)[0]
             output_file = f"{base_name}_converted.wav"
@@ -120,14 +193,68 @@ def convert_audio_to_wav(input_file, output_file=None):
             output_file
         ]
 
-        subprocess.run(cmd, check=True, capture_output=True)
+        result = subprocess.run(
+            cmd, check=True, capture_output=True, text=True)
         return output_file
 
     except subprocess.CalledProcessError as e:
-        raise Exception(f"Failed to convert audio file: {e}")
+        error_msg = e.stderr if e.stderr else str(e)
+        raise Exception(f"Failed to convert audio file: {error_msg}")
     except FileNotFoundError:
         raise Exception(
             "ffmpeg not found. Please install ffmpeg or provide a WAV file.")
+
+
+def get_installation_instructions():
+    """
+    Get installation instructions for different operating systems.
+    :return: String with installation instructions
+    """
+    return """
+Installation Instructions:
+
+1. Install Python dependencies:
+   pip install vosk arabic-reshaper python-bidi
+
+2. Install ffmpeg (for audio conversion):
+   
+   Ubuntu/Debian:
+     sudo apt-get update
+     sudo apt-get install ffmpeg
+   
+   CentOS/RHEL/Fedora:
+     sudo yum install ffmpeg
+     # or for newer versions:
+     sudo dnf install ffmpeg
+   
+   Arch Linux:
+     sudo pacman -S ffmpeg
+   
+   macOS (using Homebrew):
+     brew install ffmpeg
+   
+   Windows:
+     Download from https://ffmpeg.org/download.html
+
+3. Download VOSK models:
+   
+   English model:
+     wget https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+     unzip vosk-model-small-en-us-0.15.zip
+     mv vosk-model-small-en-us-0.15 en-us
+   
+   Arabic model:
+     wget https://alphacephei.com/vosk/models/vosk-model-ar-mgb2-0.4.zip
+     unzip vosk-model-ar-mgb2-0.4.zip
+     mv vosk-model-ar-mgb2-0.4 ar
+   
+   Place the model folders in one of these locations:
+   - Current directory (where the script is run)
+   - Script directory
+   - ~/vosk-models/
+   - /usr/share/vosk-models/ (Linux, requires sudo)
+   - /usr/local/share/vosk-models/ (Linux, requires sudo)
+"""
 
 
 def main():
@@ -143,8 +270,14 @@ def main():
                         help='Convert non-WAV files to WAV format first')
     parser.add_argument('--output', '-o', choices=['json', 'text'], default='json',
                         help='Output format (json or text)')
+    parser.add_argument('--install-help', action='store_true',
+                        help='Show installation instructions')
 
     args = parser.parse_args()
+
+    if args.install_help:
+        print(get_installation_instructions())
+        return 0
 
     file_path = args.file_path
 
@@ -155,10 +288,17 @@ def main():
             print(f"Converted audio file to: {file_path}", file=sys.stderr)
         except Exception as e:
             print(f"Conversion error: {e}", file=sys.stderr)
+            print(
+                "\nFor installation help, run: python voice_to_text.py --install-help", file=sys.stderr)
             return 1
 
     # Process the audio file
-    result = process_audio_file(file_path, args.language)
+    try:
+        result = process_audio_file(file_path, args.language)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        print("\nFor installation help, run: python voice_to_text.py --install-help", file=sys.stderr)
+        return 1
 
     # Output the result
     if args.output == 'json':
