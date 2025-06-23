@@ -3,6 +3,7 @@ import { Repository } from 'typeorm';
 import { EventLog } from './entities/eventLog.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Event } from 'src/obd/entities/enums/event.enum';
+import { LogSeverity } from './types/logs.types';
 
 @Injectable()
 export class EventLogService {
@@ -11,9 +12,16 @@ export class EventLogService {
     private readonly eventLogRepository: Repository<EventLog>,
   ) {}
 
-  async create(type: Event, message?: string): Promise<EventLog> {
+  async create(
+    type: Event,
+    severity: LogSeverity,
+    title: string,
+    message?: string,
+  ): Promise<EventLog> {
     const log = this.eventLogRepository.create({
       type,
+      severity,
+      title,
       message,
       timestamp: new Date(),
       synced: false,

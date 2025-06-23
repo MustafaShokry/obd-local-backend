@@ -169,7 +169,13 @@ export class AuthService implements OnModuleInit {
         },
         theme: 'dark',
         dashboard: {
-          selectedSensors: ['INTAKE_AIR_TEMPERATURE'],
+          selectedSensors: [
+            'INTAKE_AIR_TEMPERATURE',
+            'ENGINE_RPM',
+            'VEHICLE_SPEED',
+            'FUEL_LEVEL',
+            'BATTERY_VOLTAGE',
+          ],
           refreshRate: 0.5,
           showWarnings: true,
           autoScale: true,
@@ -182,7 +188,7 @@ export class AuthService implements OnModuleInit {
           criticalOnly: false,
         },
         dataLogging: {
-          enabled: false,
+          enabled: true,
           interval: 1000,
           maxFileSize: 100,
         },

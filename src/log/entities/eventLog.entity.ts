@@ -11,6 +11,9 @@ export class EventLog {
   type: Event;
 
   @Column()
+  title: string;
+
+  @Column()
   severity: LogSeverity;
 
   @Column()

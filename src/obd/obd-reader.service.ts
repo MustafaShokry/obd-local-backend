@@ -250,8 +250,8 @@ export class ObdReaderService {
     // TODO: get active DTCs from the C program
     return [
       {
-        code: 'P0100',
-        description: 'OBD-II DTC',
+        code: 'P0420',
+        description: 'Catalyst System Efficiency Below Threshold - Bank 1',
       },
     ];
   }
@@ -260,8 +260,8 @@ export class ObdReaderService {
     // TODO: get pending DTCs from the C program
     return [
       {
-        code: 'P0100',
-        description: 'OBD-II DTC',
+        code: 'P0171',
+        description: 'System Too Lean - Bank 1',
       },
     ];
   }

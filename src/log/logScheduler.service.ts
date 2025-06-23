@@ -13,6 +13,7 @@ import { SensorType } from 'src/obd/types/obd.types';
 import { AuthService } from 'src/auth/auth.service';
 import { ReadingSummary } from './entities/readingSummary.entity';
 import { ReadingSummaryService } from './readingSummary.service';
+import { Event } from 'src/obd/entities/enums/event.enum';
 
 @Injectable()
 export class ObdSchedulerService {
@@ -32,8 +33,18 @@ export class ObdSchedulerService {
   private currentWindowStart = new Date();
   private lastNotificationTimestamps = new Map<SensorType, Date>();
   private cooldownPeriodMs = 5 * 60 * 1000;
+  private isEngineRunning = false;
+  private lastFuelLowEvent: number | undefined;
+  private lastFuelCriticalEvent: number | undefined;
+  private lastBatteryLowEvent: number | undefined;
+  private lastBatteryCriticalEvent: number | undefined;
+  private lastEngineOverheatEvent: number | undefined;
+  private lastOilTempEvent: number | undefined;
+  private lastHighSpeedEvent: number | undefined;
+  private lastMaintenanceEvent: number | undefined;
+  private lastServiceEvent: number | undefined;
 
-  @Cron('*/10 * * * * *')
+  @Cron('*/60 * * * * *')
   async collectReadingLogs() {
     if (!(await this.authService.isUserLoggedIn())) {
       return;
@@ -246,7 +257,7 @@ export class ObdSchedulerService {
     return LogSeverity.INFO;
   }
 
-  @Cron('*/90 * * * * *')
+  @Cron('*/120 * * * * *')
   async collectDiagnosticLogs() {
     if (!(await this.authService.isUserLoggedIn())) {
       return;
@@ -303,7 +314,7 @@ export class ObdSchedulerService {
         diagnosticLog.code = dtc.code;
         diagnosticLog.description = dtc.description;
         diagnosticLog.status = DiagnosticStatus.PENDING;
-        diagnosticLog.severity = LogSeverity.ERROR;
+        diagnosticLog.severity = LogSeverity.WARNING;
         diagnosticLog.occurrenceCount = 1;
         diagnosticLog.lastOccurrence = new Date();
         await this.diagnosticLogService.create(diagnosticLog);
@@ -313,6 +324,228 @@ export class ObdSchedulerService {
         notification.title = 'Diagnostic code pending';
         notification.message = `${dtc.code}: ${dtc.description}.`;
         await this.notificationsService.createNotification(notification);
+      }
+    }
+  }
+
+  @Cron('0 */5 * * * *') // every 5 minutes
+  async simulateVehicleEvents() {
+    if (!(await this.authService.isUserLoggedIn())) {
+      return;
+    }
+    const user = await this.authService.getUserProfile();
+    if (!user.settings.dataLogging.enabled) {
+      return;
+    }
+
+    const readings = this.obdService.getCurrentData();
+    const { sensorConfigs } = this.obdService.getConfig(
+      user.settings.units === 'imperial',
+    );
+
+    // Simulate engine start/stop events based on RPM
+    const engineRpm = readings['ENGINE_RPM'];
+    if (engineRpm && typeof engineRpm === 'number') {
+      if (engineRpm > 0 && !this.isEngineRunning) {
+        // Engine started
+        await this.eventLogService.create(
+          Event.ENGINE_START,
+          LogSeverity.INFO,
+          'Engine started',
+          `Engine started at ${new Date().toLocaleTimeString()}`,
+        );
+        this.isEngineRunning = true;
+      } else if (engineRpm === 0 && this.isEngineRunning) {
+        // Engine stopped
+        await this.eventLogService.create(
+          Event.ENGINE_STOP,
+          LogSeverity.INFO,
+          'Engine stopped',
+          `Engine stopped at ${new Date().toLocaleTimeString()}`,
+        );
+        this.isEngineRunning = false;
+      }
+    }
+
+    // Simulate fuel level events
+    const fuelLevel = readings['FUEL_TANK_LEVEL_INPUT'];
+    if (fuelLevel && typeof fuelLevel === 'number') {
+      const fuelConfig = sensorConfigs.find(
+        (s) => s.key === 'FUEL_TANK_LEVEL_INPUT',
+      );
+      if (fuelConfig?.criticalRange) {
+        if (fuelLevel <= fuelConfig.criticalRange.max && fuelLevel > 5) {
+          if (
+            !this.lastFuelLowEvent ||
+            Date.now() - this.lastFuelLowEvent > 30 * 60 * 1000
+          ) {
+            // 30 min cooldown
+            await this.eventLogService.create(
+              Event.FUEL_LEVEL_LOW,
+              LogSeverity.WARNING,
+              'Fuel level is low',
+              `Fuel level is low: ${fuelLevel}%`,
+            );
+            this.lastFuelLowEvent = Date.now();
+          }
+        } else if (fuelLevel <= 5) {
+          if (
+            !this.lastFuelCriticalEvent ||
+            Date.now() - this.lastFuelCriticalEvent > 10 * 60 * 1000
+          ) {
+            // 10 min cooldown
+            await this.eventLogService.create(
+              Event.FUEL_LEVEL_CRITICAL,
+              LogSeverity.ERROR,
+              'Fuel level is critical',
+              `Fuel level is critical: ${fuelLevel}%`,
+            );
+            this.lastFuelCriticalEvent = Date.now();
+          }
+        }
+      }
+    }
+
+    // Simulate battery voltage events
+    const batteryVoltage = readings['CONTROL_MODULE_VOLTAGE'];
+    if (batteryVoltage && typeof batteryVoltage === 'number') {
+      const batteryConfig = sensorConfigs.find(
+        (s) => s.key === 'CONTROL_MODULE_VOLTAGE',
+      );
+      if (batteryConfig?.criticalRange) {
+        if (batteryVoltage < 12.0 && batteryVoltage >= 11.5) {
+          if (
+            !this.lastBatteryLowEvent ||
+            Date.now() - this.lastBatteryLowEvent > 15 * 60 * 1000
+          ) {
+            // 15 min cooldown
+            await this.eventLogService.create(
+              Event.BATTERY_VOLTAGE_LOW,
+              LogSeverity.WARNING,
+              'Battery voltage is low',
+              `Battery voltage is low: ${batteryVoltage}V`,
+            );
+            this.lastBatteryLowEvent = Date.now();
+          }
+        } else if (batteryVoltage < 11.5) {
+          if (
+            !this.lastBatteryCriticalEvent ||
+            Date.now() - this.lastBatteryCriticalEvent > 5 * 60 * 1000
+          ) {
+            // 5 min cooldown
+            await this.eventLogService.create(
+              Event.BATTERY_VOLTAGE_CRITICAL,
+              LogSeverity.ERROR,
+              'Battery voltage is critical',
+              `Battery voltage is critical: ${batteryVoltage}V`,
+            );
+            this.lastBatteryCriticalEvent = Date.now();
+          }
+        }
+      }
+    }
+
+    // Simulate engine temperature events
+    const coolantTemp = readings['ENGINE_COOLANT_TEMPERATURE'];
+    if (coolantTemp && typeof coolantTemp === 'number') {
+      const coolantConfig = sensorConfigs.find(
+        (s) => s.key === 'ENGINE_COOLANT_TEMPERATURE',
+      );
+      if (
+        coolantConfig?.criticalRange &&
+        coolantTemp >= coolantConfig.criticalRange.min
+      ) {
+        if (
+          !this.lastEngineOverheatEvent ||
+          Date.now() - this.lastEngineOverheatEvent > 5 * 60 * 1000
+        ) {
+          // 5 min cooldown
+          await this.eventLogService.create(
+            Event.ENGINE_OVERHEAT,
+            LogSeverity.ERROR,
+            'Engine coolant temperature is high',
+            `Engine coolant temperature is high: ${coolantTemp}°C`,
+          );
+          this.lastEngineOverheatEvent = Date.now();
+        }
+      }
+    }
+
+    // Simulate oil temperature events
+    const oilTemp = readings['ENGINE_OIL_TEMP'];
+    if (oilTemp && typeof oilTemp === 'number') {
+      const oilConfig = sensorConfigs.find((s) => s.key === 'ENGINE_OIL_TEMP');
+      if (oilConfig?.criticalRange && oilTemp >= oilConfig.criticalRange.min) {
+        if (
+          !this.lastOilTempEvent ||
+          Date.now() - this.lastOilTempEvent > 10 * 60 * 1000
+        ) {
+          // 10 min cooldown
+          await this.eventLogService.create(
+            Event.OIL_TEMPERATURE_HIGH,
+            LogSeverity.WARNING,
+            'Engine oil temperature is high',
+            `Engine oil temperature is high: ${oilTemp}°C`,
+          );
+          this.lastOilTempEvent = Date.now();
+        }
+      }
+    }
+
+    // Simulate speed events
+    const vehicleSpeed = readings['VEHICLE_SPEED'];
+    if (vehicleSpeed && typeof vehicleSpeed === 'number') {
+      if (vehicleSpeed > 120) {
+        // High speed threshold
+        if (
+          !this.lastHighSpeedEvent ||
+          Date.now() - this.lastHighSpeedEvent > 2 * 60 * 1000
+        ) {
+          // 2 min cooldown
+          await this.eventLogService.create(
+            Event.HIGH_SPEED_DETECTED,
+            LogSeverity.WARNING,
+            'High speed detected',
+            `High speed detected: ${vehicleSpeed} km/h`,
+          );
+          this.lastHighSpeedEvent = Date.now();
+        }
+      }
+    }
+
+    // Simulate maintenance events (random occurrence)
+    if (Math.random() < 0.001) {
+      // 0.1% chance every 5 minutes
+      if (
+        !this.lastMaintenanceEvent ||
+        Date.now() - this.lastMaintenanceEvent > 24 * 60 * 60 * 1000
+      ) {
+        // 24 hour cooldown
+        await this.eventLogService.create(
+          Event.MAINTENANCE_DUE,
+          LogSeverity.INFO,
+          'Maintenance due soon',
+          'Vehicle maintenance is due soon',
+        );
+        this.lastMaintenanceEvent = Date.now();
+      }
+    }
+
+    // Simulate service required events (random occurrence)
+    if (Math.random() < 0.0005) {
+      // 0.05% chance every 5 minutes
+      if (
+        !this.lastServiceEvent ||
+        Date.now() - this.lastServiceEvent > 12 * 60 * 60 * 1000
+      ) {
+        // 12 hour cooldown
+        await this.eventLogService.create(
+          Event.SERVICE_REQUIRED,
+          LogSeverity.WARNING,
+          'Service required',
+          'Vehicle service is required',
+        );
+        this.lastServiceEvent = Date.now();
       }
     }
   }
